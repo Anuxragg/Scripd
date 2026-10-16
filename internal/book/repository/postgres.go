@@ -63,8 +63,12 @@ func (p *Postgres) Upsert(ctx context.Context, imported book.ImportedBook) (book
 	if len(metadata) == 0 {
 		metadata = []byte("{}")
 	}
+	authors := imported.Authors
+	if authors == nil {
+		authors = []string{}
+	}
 
-	result, err := p.upsert(ctx, imported, isbn13, subtitle, coverURL, publishedYear, metadata)
+	result, err := p.upsert(ctx, imported, authors, isbn13, subtitle, coverURL, publishedYear, metadata)
 	if err == nil {
 		return result, nil
 	}
@@ -75,17 +79,17 @@ func (p *Postgres) Upsert(ctx context.Context, imported book.ImportedBook) (book
 
 	// An ISBN can refer to an edition that Open Library associates with another work.
 	// The work key remains canonical, so retry the import without that edition-level identifier.
-	result, err = p.upsert(ctx, imported, "", subtitle, coverURL, publishedYear, metadata)
+	result, err = p.upsert(ctx, imported, authors, "", subtitle, coverURL, publishedYear, metadata)
 	if err != nil {
 		return book.Book{}, fmt.Errorf("upsert book without conflicting ISBN: %w", err)
 	}
 	return result, nil
 }
 
-func (p *Postgres) upsert(ctx context.Context, imported book.ImportedBook, isbn13, subtitle, coverURL string, publishedYear any, metadata []byte) (book.Book, error) {
+func (p *Postgres) upsert(ctx context.Context, imported book.ImportedBook, authors []string, isbn13, subtitle, coverURL string, publishedYear any, metadata []byte) (book.Book, error) {
 	var result book.Book
 	err := scanBook(p.pool.QueryRow(ctx, upsertBookSQL,
-		imported.OpenLibraryKey, isbn13, imported.Title, subtitle, imported.Authors,
+		imported.OpenLibraryKey, isbn13, imported.Title, subtitle, authors,
 		coverURL, publishedYear, metadata,
 	), &result)
 	return result, err
@@ -177,4 +181,4 @@ func scanBook(row rowScanner, result *book.Book) error {
 	return nil
 }
 
-const searchVectorSQL = `to_tsvector('simple', coalesce(title, '') || ' ' || coalesce(subtitle, '') || ' ' || array_to_string(authors, ' '))`
+const searchVectorSQL = `to_tsvector('simple', coalesce(title, '') || ' ' || coalesce(subtitle, '') || ' ' || coalesce(books_authors_search_text(authors), ''))`

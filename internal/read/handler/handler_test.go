@@ -121,7 +121,7 @@ func (s *stubReadService) Create(_ context.Context, userID string, input read.En
 	return read.Entry{ID: handlerTestEntryID, BookID: input.BookID, Status: input.Status, FinishedAt: &finishedAt}, nil
 }
 
-func (s *stubReadService) GetByID(_ context.Context, userID, entryID string) (read.Entry, error) {
+func (s *stubReadService) GetByID(_ context.Context, userID, _ string) (read.Entry, error) {
 	s.userID = userID
 	return read.Entry{}, s.getErr
 }

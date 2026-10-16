@@ -35,7 +35,7 @@ const (
 	refreshTokenLifetime      = 30 * 24 * time.Hour
 	emailVerificationLifetime = 24 * time.Hour
 	accessTokenIssuer         = "scripd"
-	accessTokenAudience       = "scripd-web"
+	accessTokenAudience       = "scripd-web" //nolint:gosec // JWT audience identifier, not a credential
 	passwordMemory            = 64 * 1024
 	passwordIterations        = 3
 	passwordThreads           = 2
@@ -245,8 +245,8 @@ func (s *Service) Logout(ctx context.Context, refreshToken string) error {
 	if refreshToken == "" {
 		return nil
 	}
-	sessionID, hash, err := hashRefreshToken(refreshToken)
-	if err != nil {
+	sessionID, hash, _ := hashRefreshToken(refreshToken)
+	if sessionID == "" {
 		return nil
 	}
 	return s.store.RevokeSession(ctx, sessionID, hash)
@@ -260,7 +260,7 @@ func (s *Service) CurrentUser(ctx context.Context, accessToken string) (Profile,
 		jwt.WithAudience(accessTokenAudience),
 		jwt.WithExpirationRequired(),
 	)
-	token, err := parser.ParseWithClaims(accessToken, &claims, func(token *jwt.Token) (any, error) {
+	token, err := parser.ParseWithClaims(accessToken, &claims, func(_ *jwt.Token) (any, error) {
 		return s.accessKey, nil
 	})
 	if err != nil || token == nil || !token.Valid || claims.TokenType != "access" || claims.SessionID == "" || claims.Subject == "" {
@@ -389,7 +389,7 @@ func verifyPassword(password, encodedHash string) bool {
 	if err != nil || len(want) < 16 || len(want) > 64 {
 		return false
 	}
-	got := argon2.IDKey(passwordBytes(password), salt, uint32(iterations), uint32(memory), uint8(threads), uint32(len(want)))
+	got := argon2.IDKey(passwordBytes(password), salt, uint32(iterations), uint32(memory), uint8(threads), uint32(len(want))) //nolint:gosec // len(want) is validated between 16 and 64 above
 	return subtle.ConstantTimeCompare(got, want) == 1
 }
 

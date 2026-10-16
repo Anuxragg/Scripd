@@ -1,3 +1,4 @@
+// Package provider provides external book catalog integration adapters.
 package provider
 
 import (
@@ -33,6 +34,7 @@ type OpenLibrary struct {
 	requests chan struct{}
 }
 
+// NewOpenLibrary creates an OpenLibrary provider instance.
 func NewOpenLibrary(client *http.Client, endpoint string) *OpenLibrary {
 	if client == nil {
 		client = &http.Client{Timeout: 5 * time.Second}
@@ -47,6 +49,7 @@ func NewOpenLibrary(client *http.Client, endpoint string) *OpenLibrary {
 	return &OpenLibrary{client: client, endpoint: endpoint, requests: make(chan struct{}, maximumConcurrent)}
 }
 
+// Search queries Open Library for works matching query.
 func (p *OpenLibrary) Search(ctx context.Context, query string, page, limit int) (book.ProviderSearch, error) {
 	select {
 	case p.requests <- struct{}{}:
@@ -82,7 +85,7 @@ func (p *OpenLibrary) Search(ctx context.Context, query string, page, limit int)
 	}
 	defer response.Body.Close()
 	if response.StatusCode != http.StatusOK {
-		return book.ProviderSearch{}, fmt.Errorf("Open Library search returned status %d", response.StatusCode)
+		return book.ProviderSearch{}, fmt.Errorf("open library search returned status %d", response.StatusCode)
 	}
 
 	body, err := io.ReadAll(io.LimitReader(response.Body, maximumResponseBytes+1))
@@ -90,7 +93,7 @@ func (p *OpenLibrary) Search(ctx context.Context, query string, page, limit int)
 		return book.ProviderSearch{}, fmt.Errorf("read Open Library response: %w", err)
 	}
 	if len(body) > maximumResponseBytes {
-		return book.ProviderSearch{}, errors.New("Open Library response exceeded the size limit")
+		return book.ProviderSearch{}, errors.New("open library response exceeded the size limit")
 	}
 
 	var payload searchResponse

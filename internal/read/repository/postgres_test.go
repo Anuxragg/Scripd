@@ -48,12 +48,12 @@ func TestPostgresDiaryMigrationsOwnershipRereadsAndPagination(t *testing.T) {
 		"000002_create_books.up.sql",
 		"000003_create_reads.up.sql",
 	} {
-		applyMigration(t, ctx, pool, migrationName)
+		applyMigration(ctx, t, pool, migrationName)
 	}
-	userID := insertDiaryUser(t, ctx, pool, "reader_one", "reader-one@example.test")
-	otherUserID := insertDiaryUser(t, ctx, pool, "reader_two", "reader-two@example.test")
-	bookID := insertDiaryBook(t, ctx, pool, "A Diary of Rereads")
-	uncompletedBookID := insertDiaryBook(t, ctx, pool, "An Unfinished Tale")
+	userID := insertDiaryUser(ctx, t, pool, "reader_one", "reader-one@example.test")
+	otherUserID := insertDiaryUser(ctx, t, pool, "reader_two", "reader-two@example.test")
+	bookID := insertDiaryBook(ctx, t, pool, "A Diary of Rereads")
+	uncompletedBookID := insertDiaryBook(ctx, t, pool, "An Unfinished Tale")
 	_, err = pool.Exec(ctx, `
 		INSERT INTO reads (user_id, book_id, status, rating, started_at, finished_at)
 		VALUES ($1, $2, 'completed', 4.5, now() - interval '3 days', now() - interval '1 day')`, userID, bookID)
@@ -62,7 +62,7 @@ func TestPostgresDiaryMigrationsOwnershipRereadsAndPagination(t *testing.T) {
 		INSERT INTO reads (user_id, book_id, status, started_at)
 		VALUES ($1, $2, 'on_hold', now() - interval '2 days')`, userID, uncompletedBookID)
 	require.NoError(t, err)
-	applyMigration(t, ctx, pool, "000006_evolve_reads_for_diary.up.sql")
+	applyMigration(ctx, t, pool, "000006_evolve_reads_for_diary.up.sql")
 
 	repository := NewPostgres(pool)
 	legacyEntries, err := repository.List(ctx, userID, read.ListFilter{Status: read.StatusRead}, nil, 10)
@@ -135,7 +135,7 @@ func TestPostgresDiaryMigrationsOwnershipRereadsAndPagination(t *testing.T) {
 	require.ErrorIs(t, err, read.ErrNotFound)
 }
 
-func applyMigration(t *testing.T, ctx context.Context, pool *pgxpool.Pool, name string) {
+func applyMigration(ctx context.Context, t *testing.T, pool *pgxpool.Pool, name string) {
 	t.Helper()
 	contents, err := os.ReadFile(filepath.Join("..", "..", "..", "migrations", name))
 	require.NoError(t, err)
@@ -143,7 +143,7 @@ func applyMigration(t *testing.T, ctx context.Context, pool *pgxpool.Pool, name 
 	require.NoError(t, err)
 }
 
-func insertDiaryUser(t *testing.T, ctx context.Context, pool *pgxpool.Pool, username, email string) string {
+func insertDiaryUser(ctx context.Context, t *testing.T, pool *pgxpool.Pool, username, email string) string {
 	t.Helper()
 	var userID string
 	err := pool.QueryRow(ctx, `
@@ -153,7 +153,7 @@ func insertDiaryUser(t *testing.T, ctx context.Context, pool *pgxpool.Pool, user
 	return userID
 }
 
-func insertDiaryBook(t *testing.T, ctx context.Context, pool *pgxpool.Pool, title string) string {
+func insertDiaryBook(ctx context.Context, t *testing.T, pool *pgxpool.Pool, title string) string {
 	t.Helper()
 	var bookID string
 	err := pool.QueryRow(ctx, `

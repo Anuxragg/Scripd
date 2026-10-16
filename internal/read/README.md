@@ -1,0 +1,1 @@
+Reading diary module boundary. The domain defines shelf states, dates, notes, ratings, and reread entries. The service validates transitions and paginates; the PostgreSQL repository enforces member scoping, optimistic updates, and the active shelf uniqueness rule.

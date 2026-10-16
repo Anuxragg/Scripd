@@ -1,0 +1,134 @@
+import { z } from "zod";
+import { ApiError, apiRequest } from "@/lib/api/client";
+
+export const profileSchema = z.object({
+  id: z.string().uuid(),
+  username: z.string(),
+  email: z.email(),
+  display_name: z.string(),
+  email_verified: z.boolean(),
+  created_at: z.iso.datetime(),
+});
+
+const profileResponseSchema = z.object({
+  data: profileSchema,
+  meta: z.record(z.string(), z.unknown()),
+});
+
+const logoutResponseSchema = z.object({
+  data: z.object({ logged_out: z.boolean() }),
+  meta: z.record(z.string(), z.unknown()),
+});
+
+const verificationResponseSchema = z.object({
+  data: z.object({ email_verified: z.boolean() }),
+  meta: z.record(z.string(), z.unknown()),
+});
+
+const resendVerificationResponseSchema = z.object({
+  data: z.object({ accepted: z.boolean() }),
+  meta: z.record(z.string(), z.unknown()),
+});
+
+export type Profile = z.infer<typeof profileSchema>;
+
+export type RegisterInput = {
+  username: string;
+  email: string;
+  display_name?: string;
+  password: string;
+};
+
+export type LoginInput = {
+  identifier: string;
+  password: string;
+};
+
+function jsonRequest(body: unknown): RequestInit {
+  return {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  };
+}
+
+export function register(input: RegisterInput): Promise<Profile> {
+  return apiRequest("/api/v1/auth/register", profileResponseSchema, jsonRequest(input)).then(
+    (response) => response.data,
+  );
+}
+
+export function login(input: LoginInput): Promise<Profile> {
+  return apiRequest("/api/v1/auth/login", profileResponseSchema, jsonRequest(input)).then(
+    (response) => response.data,
+  );
+}
+
+export function refreshSession(): Promise<Profile> {
+  return apiRequest("/api/v1/auth/refresh", profileResponseSchema, { method: "POST" }).then(
+    (response) => response.data,
+  );
+}
+
+export function logout(): Promise<void> {
+  return apiRequest("/api/v1/auth/logout", logoutResponseSchema, { method: "POST" }).then(
+    () => undefined,
+  );
+}
+
+export function verifyEmail(token: string): Promise<void> {
+  return apiRequest(
+    "/api/v1/auth/email/verify",
+    verificationResponseSchema,
+    jsonRequest({ token }),
+  ).then(() => undefined);
+}
+
+export function resendEmailVerification(): Promise<void> {
+  return apiRequest(
+    "/api/v1/auth/email/verification/resend",
+    resendVerificationResponseSchema,
+    jsonRequest({}),
+  ).then(() => undefined);
+}
+
+export async function currentUser(): Promise<Profile | null> {
+  try {
+    return await fetchCurrentUser();
+  } catch (error) {
+    if (!(error instanceof ApiError) || error.status !== 401) {
+      throw error;
+    }
+  }
+
+  if (typeof navigator !== "undefined" && navigator.locks) {
+    return navigator.locks.request("scripd-session-refresh", async () => {
+      try {
+        return await fetchCurrentUser();
+      } catch (error) {
+        if (!(error instanceof ApiError) || error.status !== 401) {
+          throw error;
+        }
+      }
+      return refreshOrNull();
+    });
+  }
+
+  return refreshOrNull();
+}
+
+async function fetchCurrentUser(): Promise<Profile> {
+  const response = await apiRequest("/api/v1/auth/me", profileResponseSchema);
+  return response.data;
+}
+
+async function refreshOrNull(): Promise<Profile | null> {
+  try {
+    return await refreshSession();
+  } catch (error) {
+    if (error instanceof ApiError && error.status === 401) {
+      return null;
+    }
+    throw error;
+  }
+}

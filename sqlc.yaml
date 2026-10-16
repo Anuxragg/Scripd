@@ -1,0 +1,20 @@
+version: "2"
+sql:
+  - engine: postgresql
+    schema:
+      - migrations/000001_create_users.up.sql
+      - migrations/000002_create_books.up.sql
+      - migrations/000003_create_reads.up.sql
+      - migrations/000004_create_auth_sessions.up.sql
+      - migrations/000005_create_books_search_index.up.sql
+      - migrations/000006_evolve_reads_for_diary.up.sql
+    queries: sqlc/queries
+    gen:
+      go:
+        package: db
+        out: internal/platform/dbgen
+        sql_package: pgx/v5
+        emit_json_tags: true
+        emit_empty_slices: true
+        emit_interface: true
+        emit_pointers_for_null_types: true

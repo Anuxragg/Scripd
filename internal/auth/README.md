@@ -1,0 +1,1 @@
+Authentication module boundary. Future HTTP handlers call auth services; services own token and password workflows and depend on repositories through interfaces. Keep HTTP, business, and persistence tests beside their layer.

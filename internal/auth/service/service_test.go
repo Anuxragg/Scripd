@@ -1,0 +1,211 @@
+package service
+
+import (
+	"context"
+	"crypto/sha256"
+	"errors"
+	"fmt"
+	"strings"
+	"testing"
+	"time"
+
+	authdomain "github.com/scripd-app/scripd/internal/auth"
+)
+
+func TestRegisterNormalizesAccountAndStoresOnlyRefreshHash(t *testing.T) {
+	store := newMemoryStore()
+	svc := New(store, "test-access-secret-with-at-least-32-bytes")
+
+	result, err := svc.Register(t.Context(), "Reader_One", "Reader@Example.com", " Reader One ", "correct horse battery")
+	if err != nil {
+		t.Fatalf("Register() error = %v", err)
+	}
+	if result.User.Username != "reader_one" || result.User.Email != "reader@example.com" || result.User.DisplayName != "Reader One" {
+		t.Fatalf("unexpected profile: %#v", result.User)
+	}
+	if !strings.HasPrefix(store.user.PasswordHash, "$argon2id$v=19$m=65536,t=3,p=2$") {
+		t.Fatalf("password was not stored as the configured Argon2id hash: %q", store.user.PasswordHash)
+	}
+	if strings.Contains(store.user.PasswordHash, "correct horse battery") {
+		t.Fatal("stored password hash contains the plaintext password")
+	}
+
+	parts := strings.Split(result.RefreshToken, ".")
+	if len(parts) != 2 {
+		t.Fatalf("refresh token must contain a session ID and secret: %q", result.RefreshToken)
+	}
+	expectedHash := sha256.Sum256([]byte(parts[1]))
+	if got := store.sessions[parts[0]].tokenHash; string(got) != string(expectedHash[:]) {
+		t.Fatal("store did not retain the hash of the refresh secret")
+	}
+	if _, err := svc.CurrentUser(t.Context(), result.AccessToken); err != nil {
+		t.Fatalf("CurrentUser() after registration error = %v", err)
+	}
+}
+
+func TestRegisterRejectsInvalidInputsBeforePersistence(t *testing.T) {
+	store := newMemoryStore()
+	svc := New(store, "test-access-secret-with-at-least-32-bytes")
+
+	_, err := svc.Register(t.Context(), "ab", "reader@example.com", "", "short")
+	if !errors.Is(err, ErrInvalidInput) {
+		t.Fatalf("Register() error = %v, want ErrInvalidInput", err)
+	}
+	if store.user.ID != "" {
+		t.Fatal("invalid registration reached persistence")
+	}
+}
+
+func TestLoginAndRefreshRotationRevokeSessionOnReplay(t *testing.T) {
+	store := newMemoryStore()
+	svc := New(store, "test-access-secret-with-at-least-32-bytes")
+	if _, err := svc.Register(t.Context(), "reader_one", "reader@example.com", "", "correct horse battery"); err != nil {
+		t.Fatalf("Register() error = %v", err)
+	}
+
+	login, err := svc.Login(t.Context(), "READER@EXAMPLE.COM", "correct horse battery")
+	if err != nil {
+		t.Fatalf("Login() error = %v", err)
+	}
+	rotated, err := svc.Refresh(t.Context(), login.RefreshToken)
+	if err != nil {
+		t.Fatalf("Refresh() error = %v", err)
+	}
+	if rotated.RefreshToken == login.RefreshToken {
+		t.Fatal("Refresh() did not rotate the refresh token")
+	}
+
+	_, err = svc.Refresh(t.Context(), login.RefreshToken)
+	if !errors.Is(err, ErrInvalidSession) {
+		t.Fatalf("replayed Refresh() error = %v, want ErrInvalidSession", err)
+	}
+	if _, err := svc.CurrentUser(t.Context(), rotated.AccessToken); !errors.Is(err, ErrInvalidSession) {
+		t.Fatalf("CurrentUser() after refresh-token replay error = %v, want ErrInvalidSession", err)
+	}
+}
+
+func TestLogoutRevokesActiveAccessSession(t *testing.T) {
+	store := newMemoryStore()
+	svc := New(store, "test-access-secret-with-at-least-32-bytes")
+	result, err := svc.Register(t.Context(), "reader_one", "reader@example.com", "", "correct horse battery")
+	if err != nil {
+		t.Fatalf("Register() error = %v", err)
+	}
+	if err := svc.Logout(t.Context(), result.RefreshToken); err != nil {
+		t.Fatalf("Logout() error = %v", err)
+	}
+	if _, err := svc.CurrentUser(t.Context(), result.AccessToken); !errors.Is(err, ErrInvalidSession) {
+		t.Fatalf("CurrentUser() after logout error = %v, want ErrInvalidSession", err)
+	}
+}
+
+type memorySession struct {
+	userID    string
+	tokenHash []byte
+	expiresAt time.Time
+	revoked   bool
+}
+
+type memoryStore struct {
+	user             authdomain.User
+	sessions         map[string]memorySession
+	verificationHash []byte
+	nextSession      int
+}
+
+func newMemoryStore() *memoryStore {
+	return &memoryStore{sessions: make(map[string]memorySession)}
+}
+
+func (s *memoryStore) CreateUserWithSession(_ context.Context, user authdomain.User, tokenHash []byte, expiresAt time.Time, verificationHash []byte, _ time.Time) (authdomain.User, string, error) {
+	if s.user.ID != "" {
+		if s.user.Username == user.Username {
+			return authdomain.User{}, "", authdomain.ErrUsernameInUse
+		}
+		if s.user.Email == user.Email {
+			return authdomain.User{}, "", authdomain.ErrEmailInUse
+		}
+	}
+	user.ID = "7f5e4d3c-2b1a-4f09-8e7d-6c5b4a392817"
+	user.CreatedAt = time.Now().UTC()
+	user.UpdatedAt = user.CreatedAt
+	s.user = user
+	s.verificationHash = append([]byte(nil), verificationHash...)
+	sessionID := s.nextID()
+	s.sessions[sessionID] = memorySession{userID: user.ID, tokenHash: append([]byte(nil), tokenHash...), expiresAt: expiresAt}
+	return user, sessionID, nil
+}
+
+func (s *memoryStore) GetUserByIdentifier(_ context.Context, identifier string) (authdomain.User, error) {
+	if s.user.ID == "" || (!strings.EqualFold(s.user.Username, identifier) && !strings.EqualFold(s.user.Email, identifier)) {
+		return authdomain.User{}, authdomain.ErrNotFound
+	}
+	return s.user, nil
+}
+
+func (s *memoryStore) GetUserForSession(_ context.Context, userID, sessionID string) (authdomain.User, error) {
+	session, ok := s.sessions[sessionID]
+	if !ok || session.userID != userID || session.revoked || !session.expiresAt.After(time.Now()) || s.user.ID != userID {
+		return authdomain.User{}, authdomain.ErrNotFound
+	}
+	return s.user, nil
+}
+
+func (s *memoryStore) CreateSession(_ context.Context, userID string, tokenHash []byte, expiresAt time.Time) (string, error) {
+	if s.user.ID != userID {
+		return "", authdomain.ErrNotFound
+	}
+	sessionID := s.nextID()
+	s.sessions[sessionID] = memorySession{userID: userID, tokenHash: append([]byte(nil), tokenHash...), expiresAt: expiresAt}
+	return sessionID, nil
+}
+
+func (s *memoryStore) RotateSession(_ context.Context, sessionID string, oldHash, newHash []byte, expiresAt time.Time) (authdomain.User, string, error) {
+	session, ok := s.sessions[sessionID]
+	if !ok || session.revoked || !session.expiresAt.After(time.Now()) {
+		return authdomain.User{}, "", authdomain.ErrNotFound
+	}
+	if string(session.tokenHash) != string(oldHash) {
+		session.revoked = true
+		s.sessions[sessionID] = session
+		return authdomain.User{}, "", authdomain.ErrNotFound
+	}
+	session.tokenHash = append([]byte(nil), newHash...)
+	session.expiresAt = expiresAt
+	s.sessions[sessionID] = session
+	return s.user, sessionID, nil
+}
+
+func (s *memoryStore) RevokeSession(_ context.Context, sessionID string, tokenHash []byte) error {
+	session, ok := s.sessions[sessionID]
+	if ok && string(session.tokenHash) == string(tokenHash) {
+		session.revoked = true
+		s.sessions[sessionID] = session
+	}
+	return nil
+}
+
+func (s *memoryStore) IssueEmailVerification(_ context.Context, userID string, tokenHash []byte, _ time.Time) (string, bool, error) {
+	if s.user.ID != userID {
+		return "", false, authdomain.ErrNotFound
+	}
+	if s.user.EmailVerified {
+		return s.user.Email, true, nil
+	}
+	s.verificationHash = append([]byte(nil), tokenHash...)
+	return s.user.Email, false, nil
+}
+
+func (s *memoryStore) VerifyEmail(_ context.Context, tokenHash []byte) error {
+	if s.user.ID == "" || string(s.verificationHash) != string(tokenHash) {
+		return authdomain.ErrNotFound
+	}
+	s.user.EmailVerified = true
+	s.verificationHash = nil
+	return nil
+}
+
+func (s *memoryStore) nextID() string {
+	s.nextSession++
+	return fmt.Sprintf("00000000-0000-4000-8000-%012x", s.nextSession)
+}

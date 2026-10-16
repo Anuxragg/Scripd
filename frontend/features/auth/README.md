@@ -1,0 +1,1 @@
+Authentication UI and client state boundary. Registration and login forms validate with Zod and React Hook Form. The API client uses HttpOnly cookies and TanStack Query to load and refresh the current account; browser code never reads access or refresh token values.

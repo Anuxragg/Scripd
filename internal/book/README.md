@@ -1,0 +1,1 @@
+Book catalog module boundary. Search and Open Library synchronization will be added here. PostgreSQL is the source of truth; add Redis only after catalog traffic and query metrics show that caching is needed.

@@ -2,11 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState, type FormEvent } from "react";
-import {
-  useCurrentUser,
-  useResendEmailVerification,
-  useVerifyEmail,
-} from "@/features/auth/hooks";
+import { useCurrentUser, useResendEmailVerification, useVerifyEmail } from "@/features/auth/hooks";
 
 export function VerifyEmail({ token: initialToken }: { token: string }) {
   const [token] = useState(initialToken);
@@ -103,7 +99,12 @@ export function EmailVerificationPending() {
           Open your library
         </Link>
       ) : profile ? (
-        <button className="auth-submit" disabled={resend.isPending} onClick={sendAgain} type="button">
+        <button
+          className="auth-submit"
+          disabled={resend.isPending}
+          onClick={sendAgain}
+          type="button"
+        >
           {resend.isPending ? "Sending…" : "Resend verification email"}
         </button>
       ) : (

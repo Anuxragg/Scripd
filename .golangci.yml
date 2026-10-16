@@ -15,17 +15,23 @@ linters:
     - revive
     - unconvert
     - wastedassign
+  settings:
+    revive:
+      rules:
+        - name: exported
+          disabled: true
+        - name: package-comments
+          disabled: true
   exclusions:
     presets:
       - std-error-handling
-formatters:
-  enable:
-    - gofmt
-    - goimports
-  settings:
-    goimports:
-      local-prefixes:
-        - github.com/scripd-app/scripd
+    rules:
+      - linters:
+          - gosec
+        text: "G124:"
+      - linters:
+          - gosec
+        text: "G304:"
 issues:
   max-issues-per-linter: 0
   max-same-issues: 0

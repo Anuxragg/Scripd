@@ -299,10 +299,7 @@ export default function HomePage() {
           </h1>
           <p className="mt-3 text-xs sm:text-sm text-[#678]">
             This homepage will become customized as you{" "}
-            <Link
-              href="/books"
-              className="font-bold text-[#bcd] hover:text-white transition"
-            >
+            <Link href="/books" className="font-bold text-[#bcd] hover:text-white transition">
               follow active members
             </Link>{" "}
             on Scripd.
@@ -335,10 +332,7 @@ export default function HomePage() {
                   className="relative aspect-[2/3] w-full overflow-hidden rounded-[4px] border border-[#2c3440] bg-[#1e242c] shadow-[0_2px_8px_rgba(0,0,0,0.6)] transition duration-200 group-hover:border-white group-hover:brightness-105"
                   title={`${item.title} by ${item.author}`}
                 >
-                  <PosterImage
-                    title={item.title}
-                    coverURL={item.coverURL}
-                  />
+                  <PosterImage title={item.title} coverURL={item.coverURL} />
 
                   {/* Overlapping reviewer avatar on bottom-left of the poster */}
                   <div
@@ -627,7 +621,8 @@ export default function HomePage() {
             </h2>
             <p className="mt-3 text-xs sm:text-sm text-[#89a]">
               Scripd lets you log what you read, keep track of rereads, rate and review titles, and
-              follow people whose literary taste you trust. 100% ad-free and powered by Open Library.
+              follow people whose literary taste you trust. 100% ad-free and powered by Open
+              Library.
             </p>
 
             <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
@@ -684,17 +679,21 @@ export default function HomePage() {
             </div>
 
             <div className="flex items-center gap-3 text-sm text-[#89a]">
-              <span className="hover:text-white cursor-pointer" title="Twitter / X">𝕏</span>
-              <span className="hover:text-white cursor-pointer" title="Instagram">📷</span>
-              <span className="hover:text-white cursor-pointer" title="Mastodon">🐘</span>
+              <span className="hover:text-white cursor-pointer" title="Twitter / X">
+                𝕏
+              </span>
+              <span className="hover:text-white cursor-pointer" title="Instagram">
+                📷
+              </span>
+              <span className="hover:text-white cursor-pointer" title="Mastodon">
+                🐘
+              </span>
             </div>
           </div>
 
           {/* Bottom Attribution */}
           <div className="mt-6 flex flex-col items-center justify-between gap-3 sm:flex-row text-[11px]">
-            <p>
-              &copy; {new Date().getFullYear()} Scripd Limited. Made by book lovers worldwide.
-            </p>
+            <p>&copy; {new Date().getFullYear()} Scripd Limited. Made by book lovers worldwide.</p>
             <p>
               Book data from{" "}
               <a

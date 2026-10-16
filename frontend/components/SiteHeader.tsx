@@ -41,13 +41,14 @@ export function SiteHeader({ theme = "light" }: { theme?: "dark" | "light" }) {
               <span className="h-4 w-4 rounded-full bg-[#00e054] ring-1 ring-[#14181c]" />
               <span className="h-4 w-4 rounded-full bg-[#40bcf4] ring-1 ring-[#14181c]" />
             </div>
-            <span className="font-bold text-xl tracking-tight text-white font-sans">
-              Scripd
-            </span>
+            <span className="font-bold text-xl tracking-tight text-white font-sans">Scripd</span>
           </Link>
 
           {/* Nav Items */}
-          <nav aria-label="Main navigation" className="flex items-center gap-2 sm:gap-4 text-xs font-bold uppercase tracking-wider">
+          <nav
+            aria-label="Main navigation"
+            className="flex items-center gap-2 sm:gap-4 text-xs font-bold uppercase tracking-wider"
+          >
             {profile ? (
               <div className="relative">
                 <button
@@ -59,7 +60,9 @@ export function SiteHeader({ theme = "light" }: { theme?: "dark" | "light" }) {
                   <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#40bcf4] text-[10px] font-bold text-[#14181c]">
                     {displayName.slice(0, 2).toUpperCase()}
                   </span>
-                  <span className="hidden sm:inline font-bold tracking-wider">{displayName.toUpperCase()}</span>
+                  <span className="hidden sm:inline font-bold tracking-wider">
+                    {displayName.toUpperCase()}
+                  </span>
                   <span className="text-[9px] text-[#678]">▼</span>
                 </button>
 
@@ -98,10 +101,7 @@ export function SiteHeader({ theme = "light" }: { theme?: "dark" | "light" }) {
               </div>
             ) : (
               <div className="flex items-center gap-2 sm:gap-3">
-                <Link
-                  href="/login"
-                  className="text-[#9ab] hover:text-white transition"
-                >
+                <Link href="/login" className="text-[#9ab] hover:text-white transition">
                   Sign in
                 </Link>
                 <Link

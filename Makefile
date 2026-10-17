@@ -24,8 +24,7 @@ lint:
 	$(NPM) --prefix frontend exec -- prettier --check .
 
 migrate-up:
-	@test -n "$(DATABASE_URL)" || (echo "Set DATABASE_URL to the PostgreSQL migration URL" && exit 1)
-	$(MIGRATE) -path migrations -database "$(DATABASE_URL)" up
+	$(GO) run ./cmd/migrate
 
 migrate-down:
 	@test -n "$(DATABASE_URL)" || (echo "Set DATABASE_URL to the PostgreSQL migration URL" && exit 1)

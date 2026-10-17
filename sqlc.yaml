@@ -8,6 +8,8 @@ sql:
       - migrations/000004_create_auth_sessions.up.sql
       - migrations/000005_create_books_search_index.up.sql
       - migrations/000006_evolve_reads_for_diary.up.sql
+      - migrations/000007_add_email_verification.up.sql
+      - migrations/000008_create_reviews.up.sql
     queries: sqlc/queries
     gen:
       go:

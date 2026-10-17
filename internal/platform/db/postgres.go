@@ -28,6 +28,9 @@ func Connect(ctx context.Context, cfg config.Config) (*pgxpool.Pool, error) {
 }
 
 func databaseURL(cfg config.Config) string {
+	if cfg.DatabaseURL != "" {
+		return cfg.DatabaseURL
+	}
 	return (&url.URL{
 		Scheme: "postgres",
 		Host:   net.JoinHostPort(cfg.DBHost, strconv.Itoa(cfg.DBPort)),

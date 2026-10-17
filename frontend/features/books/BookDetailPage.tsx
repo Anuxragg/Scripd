@@ -5,6 +5,7 @@ import { ApiError } from "@/lib/api/client";
 import { BookCover } from "@/features/books/BookCover";
 import { useBook } from "@/features/books/hooks";
 import { ReadingActions } from "@/features/reads/ReadingActions";
+import { BookReviewsSection } from "@/features/reviews/BookReviewsSection";
 
 export function BookDetailPage({ bookID }: { bookID: string }) {
   const bookQuery = useBook(bookID);
@@ -86,6 +87,7 @@ export function BookDetailPage({ bookID }: { bookID: string }) {
               </div>
               <div className="max-w-2xl">
                 <ReadingActions bookID={bookQuery.data.id} />
+                <BookReviewsSection bookID={bookQuery.data.id} />
               </div>
               <a
                 className="mt-8 inline-flex items-center gap-2 text-sm font-semibold text-[var(--forest)] hover:underline"

@@ -15,6 +15,7 @@ import (
 type Config struct {
 	Environment        string
 	HTTPAddress        string
+	DatabaseURL        string
 	DBHost             string
 	DBPort             int
 	DBName             string
@@ -37,6 +38,8 @@ type Config struct {
 }
 
 func Load() (Config, error) {
+	loadDotEnv(".env")
+
 	port, err := intFromEnv("DB_PORT", 5432)
 	if err != nil {
 		return Config{}, err
@@ -66,15 +69,53 @@ func Load() (Config, error) {
 		return Config{}, err
 	}
 
+	databaseURL := env("DATABASE_URL", "")
+	dbHost := env("DB_HOST", "localhost")
+	dbPort := port
+	dbName := env("DB_NAME", "scripd")
+	dbUser := env("DB_USER", "scripd")
+	dbPassword := os.Getenv("DB_PASSWORD")
+	dbSSLMode := env("DB_SSLMODE", "disable")
+
+	if databaseURL != "" {
+		if parsed, err := url.Parse(databaseURL); err == nil && parsed.Host != "" {
+			dbHost = parsed.Hostname()
+			if p := parsed.Port(); p != "" {
+				if intPort, err := strconv.Atoi(p); err == nil {
+					dbPort = intPort
+				}
+			}
+			if parsed.User != nil {
+				dbUser = parsed.User.Username()
+				if pass, ok := parsed.User.Password(); ok {
+					dbPassword = pass
+				}
+			}
+			if path := strings.TrimPrefix(parsed.Path, "/"); path != "" {
+				dbName = path
+			}
+			if ssl := parsed.Query().Get("sslmode"); ssl != "" {
+				dbSSLMode = ssl
+			} else if dbHost != "localhost" && dbHost != "127.0.0.1" {
+				dbSSLMode = "require"
+				q := parsed.Query()
+				q.Set("sslmode", "require")
+				parsed.RawQuery = q.Encode()
+				databaseURL = parsed.String()
+			}
+		}
+	}
+
 	cfg := Config{
 		Environment:        env("APP_ENV", "development"),
 		HTTPAddress:        env("HTTP_ADDR", ":8080"),
-		DBHost:             env("DB_HOST", "localhost"),
-		DBPort:             port,
-		DBName:             env("DB_NAME", "scripd"),
-		DBUser:             env("DB_USER", "scripd"),
-		DBPassword:         os.Getenv("DB_PASSWORD"),
-		DBSSLMode:          env("DB_SSLMODE", "disable"),
+		DatabaseURL:        databaseURL,
+		DBHost:             dbHost,
+		DBPort:             dbPort,
+		DBName:             dbName,
+		DBUser:             dbUser,
+		DBPassword:         dbPassword,
+		DBSSLMode:          dbSSLMode,
 		JWTAccessSecret:    os.Getenv("JWT_ACCESS_SECRET"),
 		WebBaseURL:         env("WEB_BASE_URL", "http://localhost:3000"),
 		SMTPHost:           env("SMTP_HOST", "localhost"),
@@ -209,4 +250,30 @@ func boolFromEnv(key string, fallback bool) (bool, error) {
 		return false, fmt.Errorf("%s must be a boolean: %w", key, err)
 	}
 	return parsed, nil
+}
+
+func loadDotEnv(path string) {
+	content, err := os.ReadFile(path)
+	if err != nil {
+		return
+	}
+	lines := strings.Split(string(content), "\n")
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		parts := strings.SplitN(line, "=", 2)
+		if len(parts) != 2 {
+			continue
+		}
+		k := strings.TrimSpace(parts[0])
+		v := strings.TrimSpace(parts[1])
+		if len(v) >= 2 && ((v[0] == '"' && v[len(v)-1] == '"') || (v[0] == '\'' && v[len(v)-1] == '\'')) {
+			v = v[1 : len(v)-1]
+		}
+		if os.Getenv(k) == "" {
+			_ = os.Setenv(k, v)
+		}
+	}
 }

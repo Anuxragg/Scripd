@@ -27,6 +27,9 @@ import (
 	readhandler "github.com/scripd-app/scripd/internal/read/handler"
 	readrepository "github.com/scripd-app/scripd/internal/read/repository"
 	readservice "github.com/scripd-app/scripd/internal/read/service"
+	reviewhandler "github.com/scripd-app/scripd/internal/review/handler"
+	reviewrepository "github.com/scripd-app/scripd/internal/review/repository"
+	reviewservice "github.com/scripd-app/scripd/internal/review/service"
 )
 
 func main() {
@@ -68,10 +71,14 @@ func run() error {
 	readRepo := readrepository.NewPostgres(pool)
 	readSvc := readservice.New(readRepo)
 	readHTTP := readhandler.New(readSvc, sessionMiddleware.RequireUser, log)
+	reviewRepo := reviewrepository.NewPostgres(pool)
+	reviewSvc := reviewservice.New(reviewRepo, readRepo)
+	reviewHTTP := reviewhandler.New(reviewSvc, sessionMiddleware.RequireUser, sessionMiddleware.RequireVerifiedUser, log)
 	registerRoutes := func(router chi.Router) {
 		authHTTP.RegisterRoutes(router)
 		bookHTTP.RegisterRoutes(router)
 		readHTTP.RegisterRoutes(router)
+		reviewHTTP.RegisterRoutes(router)
 	}
 	server := &http.Server{
 		Addr:              cfg.HTTPAddress,

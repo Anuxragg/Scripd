@@ -74,7 +74,11 @@ export async function getReviewForRead(readID: string): Promise<Review | null> {
   }
 }
 
-export async function listReviewsByBook(bookID: string, cursor?: string, limit = 20): Promise<ReviewPage> {
+export async function listReviewsByBook(
+  bookID: string,
+  cursor?: string,
+  limit = 20,
+): Promise<ReviewPage> {
   const params = new URLSearchParams();
   if (cursor) params.set("cursor", cursor);
   if (limit) params.set("limit", String(limit));

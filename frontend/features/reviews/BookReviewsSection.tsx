@@ -57,7 +57,10 @@ export function BookReviewsSection({ bookID }: { bookID: string }) {
         {reviewsQuery.isPending ? (
           <div className="space-y-4">
             {[1, 2].map((i) => (
-              <div key={i} className="animate-pulse rounded-2xl border border-[var(--line)] bg-white p-6">
+              <div
+                key={i}
+                className="animate-pulse rounded-2xl border border-[var(--line)] bg-white p-6"
+              >
                 <div className="flex items-center gap-3">
                   <div className="h-10 w-10 rounded-full bg-[#e9e6df]" />
                   <div className="space-y-2">

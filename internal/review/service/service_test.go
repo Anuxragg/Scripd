@@ -12,12 +12,8 @@ import (
 )
 
 type mockReviewStore struct {
-	createdInput review.CreateInput
-	createErr    error
-	reviewToGet  review.Review
-	getErr       error
-	reviews      []review.Review
-	listErr      error
+	createErr error
+	reviews   []review.Review
 }
 
 func (m *mockReviewStore) Create(ctx context.Context, userID, bookID string, input review.CreateInput) (review.Review, error) {
@@ -35,17 +31,11 @@ func (m *mockReviewStore) Create(ctx context.Context, userID, bookID string, inp
 }
 
 func (m *mockReviewStore) GetByID(ctx context.Context, id string) (review.Review, error) {
-	if m.getErr != nil {
-		return review.Review{}, m.getErr
-	}
-	return m.reviewToGet, nil
+	return review.Review{}, nil
 }
 
 func (m *mockReviewStore) GetByReadID(ctx context.Context, readID string) (review.Review, error) {
-	if m.getErr != nil {
-		return review.Review{}, m.getErr
-	}
-	return m.reviewToGet, nil
+	return review.Review{}, nil
 }
 
 func (m *mockReviewStore) Update(ctx context.Context, userID, id string, input review.UpdateInput) (review.Review, error) {
@@ -57,9 +47,6 @@ func (m *mockReviewStore) Delete(ctx context.Context, userID, id string) error {
 }
 
 func (m *mockReviewStore) ListByBook(ctx context.Context, bookID string, opts review.ListOptions) ([]review.Review, error) {
-	if m.listErr != nil {
-		return nil, m.listErr
-	}
 	return m.reviews, nil
 }
 

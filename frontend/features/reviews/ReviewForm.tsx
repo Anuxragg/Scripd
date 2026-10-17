@@ -52,12 +52,20 @@ export function ReviewForm({ readID, bookID, onSuccess }: ReviewFormProps) {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="rounded-2xl border border-[var(--line)] bg-[var(--surface,#fafaf9)] p-5 sm:p-6">
+    <form
+      onSubmit={handleSubmit}
+      className="rounded-2xl border border-[var(--line)] bg-[var(--surface,#fafaf9)] p-5 sm:p-6"
+    >
       <h3 className="font-serif text-lg font-semibold text-[var(--ink)]">Write a Review</h3>
-      <p className="mt-1 text-xs text-[var(--muted)]">Share your thoughts with other readers on Scripd.</p>
+      <p className="mt-1 text-xs text-[var(--muted)]">
+        Share your thoughts with other readers on Scripd.
+      </p>
 
       {errorMessage && (
-        <div className="mt-3 rounded-xl border border-red-200 bg-red-50 p-3 text-xs text-red-700" role="alert">
+        <div
+          className="mt-3 rounded-xl border border-red-200 bg-red-50 p-3 text-xs text-red-700"
+          role="alert"
+        >
           {errorMessage}
         </div>
       )}

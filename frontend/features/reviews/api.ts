@@ -101,3 +101,100 @@ export async function deleteReview(reviewID: string): Promise<boolean> {
   });
   return response.data.deleted;
 }
+
+export const commentAuthorSchema = z.object({
+  id: z.string().uuid(),
+  username: z.string(),
+  display_name: z.string().default(""),
+  avatar_url: z.string().default(""),
+});
+
+export const commentSchema = z.object({
+  id: z.string().uuid(),
+  review_id: z.string().uuid(),
+  user_id: z.string().uuid(),
+  body: z.string(),
+  author: commentAuthorSchema,
+  created_at: z.string(),
+  updated_at: z.string(),
+});
+
+export const reviewSocialStatsSchema = z.object({
+  review_id: z.string().uuid(),
+  likes_count: z.number().int(),
+  comments_count: z.number().int(),
+  is_liked: z.boolean(),
+});
+
+const commentsListResponseSchema = z.object({
+  data: z.array(commentSchema),
+});
+
+const singleCommentResponseSchema = z.object({
+  data: commentSchema,
+});
+
+const socialStatsResponseSchema = z.object({
+  data: reviewSocialStatsSchema,
+});
+
+const likeResponseSchema = z.object({
+  data: z.object({ liked: z.boolean() }),
+});
+
+export type ReviewComment = z.infer<typeof commentSchema>;
+export type ReviewSocialStats = z.infer<typeof reviewSocialStatsSchema>;
+
+export async function getReviewSocialStats(reviewID: string): Promise<ReviewSocialStats> {
+  const response = await apiRequest(
+    `/api/v1/reviews/${reviewID}/social`,
+    socialStatsResponseSchema,
+  );
+  return response.data;
+}
+
+export async function likeReview(reviewID: string): Promise<boolean> {
+  const response = await apiRequest(`/api/v1/reviews/${reviewID}/like`, likeResponseSchema, {
+    method: "POST",
+  });
+  return response.data.liked;
+}
+
+export async function unlikeReview(reviewID: string): Promise<boolean> {
+  const response = await apiRequest(`/api/v1/reviews/${reviewID}/like`, likeResponseSchema, {
+    method: "DELETE",
+  });
+  return response.data.liked;
+}
+
+export async function listComments(reviewID: string): Promise<ReviewComment[]> {
+  const response = await apiRequest(
+    `/api/v1/reviews/${reviewID}/comments`,
+    commentsListResponseSchema,
+  );
+  return response.data;
+}
+
+export async function createComment(reviewID: string, body: string): Promise<ReviewComment> {
+  const response = await apiRequest(
+    `/api/v1/reviews/${reviewID}/comments`,
+    singleCommentResponseSchema,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ body }),
+    },
+  );
+  return response.data;
+}
+
+export async function deleteComment(reviewID: string, commentID: string): Promise<boolean> {
+  const response = await apiRequest(
+    `/api/v1/reviews/${reviewID}/comments/${commentID}`,
+    deleteResponseSchema,
+    {
+      method: "DELETE",
+    },
+  );
+  return response.data.deleted;
+}

@@ -7,6 +7,12 @@ import {
   getReviewForRead,
   listReviewsByBook,
   updateReview,
+  getReviewSocialStats,
+  likeReview,
+  unlikeReview,
+  listComments,
+  createComment,
+  deleteComment,
   type CreateReviewInput,
   type UpdateReviewInput,
 } from "@/features/reviews/api";
@@ -70,6 +76,66 @@ export function useDeleteReview(bookID?: string) {
       } else {
         queryClient.invalidateQueries({ queryKey: ["reviews"] });
       }
+    },
+  });
+}
+
+export function useReviewSocial(reviewID: string, enabled = true) {
+  return useQuery({
+    queryKey: ["reviews", "social", reviewID],
+    queryFn: () => getReviewSocialStats(reviewID),
+    enabled: Boolean(reviewID) && enabled,
+    staleTime: 15_000,
+  });
+}
+
+export function useLikeReview(reviewID: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () => likeReview(reviewID),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["reviews", "social", reviewID] });
+    },
+  });
+}
+
+export function useUnlikeReview(reviewID: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () => unlikeReview(reviewID),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["reviews", "social", reviewID] });
+    },
+  });
+}
+
+export function useReviewComments(reviewID: string, enabled = true) {
+  return useQuery({
+    queryKey: ["reviews", "comments", reviewID],
+    queryFn: () => listComments(reviewID),
+    enabled: Boolean(reviewID) && enabled,
+    staleTime: 15_000,
+  });
+}
+
+export function useCreateComment(reviewID: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (body: string) => createComment(reviewID, body),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["reviews", "comments", reviewID] });
+      queryClient.invalidateQueries({ queryKey: ["reviews", "social", reviewID] });
+    },
+  });
+}
+
+export function useDeleteComment(reviewID: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (commentID: string) => deleteComment(reviewID, commentID),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["reviews", "comments", reviewID] });
+      queryClient.invalidateQueries({ queryKey: ["reviews", "social", reviewID] });
     },
   });
 }

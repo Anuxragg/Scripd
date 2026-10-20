@@ -11,6 +11,7 @@ sql:
       - migrations/000007_add_email_verification.up.sql
       - migrations/000008_create_reviews.up.sql
       - migrations/000009_create_follows.up.sql
+      - migrations/000010_create_likes_and_comments.up.sql
     queries: sqlc/queries
     gen:
       go:

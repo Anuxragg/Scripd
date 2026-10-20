@@ -30,6 +30,9 @@ import (
 	reviewhandler "github.com/scripd-app/scripd/internal/review/handler"
 	reviewrepository "github.com/scripd-app/scripd/internal/review/repository"
 	reviewservice "github.com/scripd-app/scripd/internal/review/service"
+	commenthandler "github.com/scripd-app/scripd/internal/comment/handler"
+	commentrepository "github.com/scripd-app/scripd/internal/comment/repository"
+	commentservice "github.com/scripd-app/scripd/internal/comment/service"
 	feedhandler "github.com/scripd-app/scripd/internal/feed/handler"
 	feedrepository "github.com/scripd-app/scripd/internal/feed/repository"
 	feedservice "github.com/scripd-app/scripd/internal/feed/service"
@@ -92,6 +95,9 @@ func run() error {
 	feedRepo := feedrepository.NewPostgres(pool)
 	feedSvc := feedservice.New(feedRepo)
 	feedHTTP := feedhandler.New(feedSvc, sessionMiddleware.RequireUser, log)
+	commentRepo := commentrepository.NewPostgres(pool)
+	commentSvc := commentservice.New(commentRepo)
+	commentHTTP := commenthandler.New(commentSvc, sessionMiddleware.RequireUser, sessionMiddleware.RequireVerifiedUser, log)
 	registerRoutes := func(router chi.Router) {
 		authHTTP.RegisterRoutes(router)
 		bookHTTP.RegisterRoutes(router)
@@ -100,6 +106,7 @@ func run() error {
 		userHTTP.RegisterRoutes(router)
 		followHTTP.RegisterRoutes(router)
 		feedHTTP.RegisterRoutes(router)
+		commentHTTP.RegisterRoutes(router)
 	}
 	server := &http.Server{
 		Addr:              cfg.HTTPAddress,

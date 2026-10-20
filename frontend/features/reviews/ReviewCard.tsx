@@ -2,7 +2,15 @@
 
 import Image from "next/image";
 import { useState } from "react";
-import type { Review } from "@/features/reviews/api";
+import type { Review, ReviewComment } from "@/features/reviews/api";
+import {
+  useReviewSocial,
+  useLikeReview,
+  useUnlikeReview,
+  useReviewComments,
+  useCreateComment,
+  useDeleteComment,
+} from "@/features/reviews/hooks";
 
 type ReviewCardProps = {
   review: Review;
@@ -12,7 +20,40 @@ type ReviewCardProps = {
 
 export function ReviewCard({ review, currentUserID, onDelete }: ReviewCardProps) {
   const [revealed, setRevealed] = useState(!review.contains_spoilers);
+  const [showComments, setShowComments] = useState(false);
+  const [commentBody, setCommentBody] = useState("");
   const isAuthor = Boolean(currentUserID && review.user_id === currentUserID);
+
+  const socialQuery = useReviewSocial(review.id);
+  const likeMutation = useLikeReview(review.id);
+  const unlikeMutation = useUnlikeReview(review.id);
+  const commentsQuery = useReviewComments(review.id, showComments);
+  const createCommentMutation = useCreateComment(review.id);
+  const deleteCommentMutation = useDeleteComment(review.id);
+
+  const isLiked = socialQuery.data?.is_liked ?? false;
+  const likesCount = socialQuery.data?.likes_count ?? 0;
+  const commentsCount = socialQuery.data?.comments_count ?? 0;
+  const isLikePending = likeMutation.isPending || unlikeMutation.isPending;
+
+  async function handleToggleLike() {
+    if (!currentUserID) {
+      window.location.href = `/login?redirect=${encodeURIComponent(window.location.pathname)}`;
+      return;
+    }
+    if (isLiked) {
+      await unlikeMutation.mutateAsync();
+    } else {
+      await likeMutation.mutateAsync();
+    }
+  }
+
+  async function handleAddComment(e: React.FormEvent) {
+    e.preventDefault();
+    if (!commentBody.trim()) return;
+    await createCommentMutation.mutateAsync(commentBody.trim());
+    setCommentBody("");
+  }
 
   const formattedDate = new Date(review.created_at).toLocaleDateString(undefined, {
     year: "numeric",
@@ -106,6 +147,110 @@ export function ReviewCard({ review, currentUserID, onDelete }: ReviewCardProps)
           </div>
         )}
       </div>
+
+      {/* Social Actions (Like & Comments) */}
+      <div className="mt-4 flex items-center justify-between border-t border-[var(--line)] pt-3 text-xs">
+        <div className="flex items-center gap-4">
+          <button
+            type="button"
+            disabled={isLikePending}
+            onClick={handleToggleLike}
+            className={`flex items-center gap-1.5 font-semibold transition ${
+              isLiked
+                ? "text-rose-600 hover:text-rose-700"
+                : "text-[var(--muted)] hover:text-rose-600"
+            }`}
+          >
+            <span>{isLiked ? "♥" : "♡"}</span>
+            <span>
+              {likesCount} {likesCount === 1 ? "Like" : "Likes"}
+            </span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setShowComments(!showComments)}
+            className="flex items-center gap-1.5 font-semibold text-[var(--muted)] hover:text-[var(--ink)] transition"
+          >
+            <span>💬</span>
+            <span>
+              {commentsCount} {commentsCount === 1 ? "Comment" : "Comments"}
+            </span>
+          </button>
+        </div>
+      </div>
+
+      {/* Expanded Comments Section */}
+      {showComments && (
+        <div className="mt-4 space-y-3 rounded-2xl bg-[var(--background)] p-4 border border-[var(--line)]">
+          {commentsQuery.isLoading ? (
+            <p className="text-xs text-[var(--muted)] animate-pulse">Loading comments...</p>
+          ) : (commentsQuery.data ?? []).length === 0 ? (
+            <p className="text-xs text-[var(--muted)] italic">
+              No comments yet. Be the first to share your thoughts!
+            </p>
+          ) : (
+            <div className="space-y-3">
+              {(commentsQuery.data ?? []).map((c: ReviewComment) => {
+                const canDelete = currentUserID === c.user_id || currentUserID === review.user_id;
+                return (
+                  <div key={c.id} className="flex items-start justify-between gap-3 text-xs">
+                    <div>
+                      <span className="font-semibold text-[var(--ink)]">
+                        {c.author.display_name || c.author.username}
+                      </span>{" "}
+                      <span className="text-[var(--muted)]">@{c.author.username}</span>
+                      <p className="mt-0.5 text-sm text-[var(--ink)] leading-relaxed whitespace-pre-line">
+                        {c.body}
+                      </p>
+                    </div>
+                    {canDelete && (
+                      <button
+                        type="button"
+                        onClick={() => deleteCommentMutation.mutate(c.id)}
+                        className="text-[11px] text-[var(--muted)] hover:text-red-600 transition"
+                      >
+                        Delete
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {/* Post Comment Input */}
+          {currentUserID ? (
+            <form
+              onSubmit={handleAddComment}
+              className="mt-3 flex gap-2 pt-2 border-t border-[var(--line)]"
+            >
+              <input
+                type="text"
+                placeholder="Write a comment..."
+                value={commentBody}
+                onChange={(e) => setCommentBody(e.target.value)}
+                maxLength={2000}
+                className="flex-1 rounded-full border border-[var(--line)] bg-white px-3.5 py-1.5 text-xs text-[var(--ink)] focus:outline-none focus:ring-1 focus:ring-[var(--forest)]"
+              />
+              <button
+                type="submit"
+                disabled={!commentBody.trim() || createCommentMutation.isPending}
+                className="rounded-full bg-[var(--forest)] px-4 py-1.5 text-xs font-semibold text-white hover:opacity-90 disabled:opacity-40 transition"
+              >
+                Post
+              </button>
+            </form>
+          ) : (
+            <p className="pt-2 text-[11px] text-[var(--muted)] border-t border-[var(--line)]">
+              <a href="/login" className="underline hover:text-[var(--forest)]">
+                Sign in
+              </a>{" "}
+              to leave a comment.
+            </p>
+          )}
+        </div>
+      )}
     </article>
   );
 }

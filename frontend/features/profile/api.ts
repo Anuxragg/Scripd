@@ -25,8 +25,24 @@ const statsResponseSchema = z.object({
   data: profileStatsSchema,
 });
 
+export const followStatusSchema = z.object({
+  is_following: z.boolean(),
+  followers_count: z.number().int(),
+  following_count: z.number().int(),
+});
+
+const followStatusResponseSchema = z.object({
+  data: followStatusSchema,
+});
+
+const followMutationResponseSchema = z.object({
+  following: z.boolean().optional(),
+  unfollowed: z.boolean().optional(),
+});
+
 export type PublicProfile = z.infer<typeof publicProfileSchema>;
 export type ProfileStats = z.infer<typeof profileStatsSchema>;
+export type FollowStatus = z.infer<typeof followStatusSchema>;
 
 export type UpdateProfileInput = {
   display_name?: string;
@@ -51,4 +67,24 @@ export async function updateProfile(input: UpdateProfileInput): Promise<PublicPr
     body: JSON.stringify(input),
   });
   return response.data;
+}
+
+export async function getFollowStatus(username: string): Promise<FollowStatus> {
+  const response = await apiRequest(
+    `/api/v1/users/${username}/follow-status`,
+    followStatusResponseSchema,
+  );
+  return response.data;
+}
+
+export async function followUser(username: string): Promise<void> {
+  await apiRequest(`/api/v1/users/${username}/follow`, followMutationResponseSchema, {
+    method: "POST",
+  });
+}
+
+export async function unfollowUser(username: string): Promise<void> {
+  await apiRequest(`/api/v1/users/${username}/follow`, followMutationResponseSchema, {
+    method: "DELETE",
+  });
 }

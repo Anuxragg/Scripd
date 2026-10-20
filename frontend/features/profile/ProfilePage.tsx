@@ -4,13 +4,23 @@ import Image from "next/image";
 import Link from "next/link";
 import { useState } from "react";
 import { useCurrentUser } from "@/features/auth/hooks";
-import { useProfile, useProfileStats, useUpdateProfile } from "@/features/profile/hooks";
+import {
+  useProfile,
+  useProfileStats,
+  useUpdateProfile,
+  useFollowStatus,
+  useFollowUser,
+  useUnfollowUser,
+} from "@/features/profile/hooks";
 
 export function ProfilePage({ username }: { username: string }) {
   const userQuery = useCurrentUser();
   const profileQuery = useProfile(username);
   const statsQuery = useProfileStats(username);
   const updateMutation = useUpdateProfile(username);
+  const followStatusQuery = useFollowStatus(username);
+  const followMutation = useFollowUser(username);
+  const unfollowMutation = useUnfollowUser(username);
 
   const [isEditing, setIsEditing] = useState(false);
   const [displayName, setDisplayName] = useState("");
@@ -44,6 +54,17 @@ export function ProfilePage({ username }: { username: string }) {
       setIsEditing(false);
     } catch {
       setErrorMessage("Unable to save profile changes. Please try again.");
+    }
+  }
+
+  const isFollowPending = followMutation.isPending || unfollowMutation.isPending;
+  const isFollowing = followStatusQuery.data?.is_following ?? false;
+
+  async function handleToggleFollow() {
+    if (isFollowing) {
+      await unfollowMutation.mutateAsync();
+    } else {
+      await followMutation.mutateAsync();
     }
   }
 
@@ -120,10 +141,24 @@ export function ProfilePage({ username }: { username: string }) {
                 </h1>
                 <p className="text-sm text-[var(--muted)]">@{profile.username}</p>
                 <p className="mt-1 text-xs text-[var(--muted)]">Joined {joinedDate}</p>
+                <div className="mt-3 flex items-center gap-4 text-xs font-medium text-[var(--ink)]">
+                  <span>
+                    <strong className="font-semibold text-sm">
+                      {followStatusQuery.data?.followers_count ?? 0}
+                    </strong>{" "}
+                    <span className="text-[var(--muted)]">Followers</span>
+                  </span>
+                  <span>
+                    <strong className="font-semibold text-sm">
+                      {followStatusQuery.data?.following_count ?? 0}
+                    </strong>{" "}
+                    <span className="text-[var(--muted)]">Following</span>
+                  </span>
+                </div>
               </div>
             </div>
 
-            {isOwner && (
+            {isOwner ? (
               <button
                 type="button"
                 onClick={openEditModal}
@@ -131,6 +166,26 @@ export function ProfilePage({ username }: { username: string }) {
               >
                 Edit profile
               </button>
+            ) : currentUserID ? (
+              <button
+                type="button"
+                disabled={isFollowPending}
+                onClick={handleToggleFollow}
+                className={`self-start sm:self-center rounded-full px-5 py-2 text-sm font-semibold transition ${
+                  isFollowing
+                    ? "border border-[var(--line)] bg-white text-[var(--ink)] hover:border-red-300 hover:bg-red-50 hover:text-red-600"
+                    : "bg-[var(--forest)] text-white hover:opacity-90 shadow-sm"
+                }`}
+              >
+                {isFollowPending ? "Saving..." : isFollowing ? "Following" : "Follow"}
+              </button>
+            ) : (
+              <Link
+                href={`/login?redirect=/u/${encodeURIComponent(username)}`}
+                className="self-start sm:self-center rounded-full bg-[var(--forest)] px-5 py-2 text-sm font-semibold text-white shadow-sm hover:opacity-90"
+              >
+                Follow
+              </Link>
             )}
           </div>
 

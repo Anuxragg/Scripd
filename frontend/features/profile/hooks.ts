@@ -5,6 +5,9 @@ import {
   getProfile,
   getProfileStats,
   updateProfile,
+  getFollowStatus,
+  followUser,
+  unfollowUser,
   type UpdateProfileInput,
 } from "@/features/profile/api";
 
@@ -23,6 +26,45 @@ export function useProfileStats(username: string) {
     queryFn: () => getProfileStats(username),
     enabled: Boolean(username.trim()),
     staleTime: 60_000,
+  });
+}
+
+export function useFollowStatus(username: string) {
+  return useQuery({
+    queryKey: ["users", "follow-status", username.toLowerCase()],
+    queryFn: () => getFollowStatus(username),
+    enabled: Boolean(username.trim()),
+    staleTime: 30_000,
+  });
+}
+
+export function useFollowUser(username: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () => followUser(username),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ["users", "follow-status", username.toLowerCase()],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["users", "stats", username.toLowerCase()],
+      });
+    },
+  });
+}
+
+export function useUnfollowUser(username: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () => unfollowUser(username),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ["users", "follow-status", username.toLowerCase()],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["users", "stats", username.toLowerCase()],
+      });
+    },
   });
 }
 

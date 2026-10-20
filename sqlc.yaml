@@ -10,6 +10,7 @@ sql:
       - migrations/000006_evolve_reads_for_diary.up.sql
       - migrations/000007_add_email_verification.up.sql
       - migrations/000008_create_reviews.up.sql
+      - migrations/000009_create_follows.up.sql
     queries: sqlc/queries
     gen:
       go:

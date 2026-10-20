@@ -72,6 +72,13 @@ export function SiteHeader({ theme = "light" }: { theme?: "dark" | "light" }) {
                       Signed in as <strong className="text-white">@{profile.username}</strong>
                     </div>
                     <Link
+                      href="/feed"
+                      onClick={() => setUserMenuOpen(false)}
+                      className="block px-4 py-2 text-[#9ab] hover:bg-[#242c34] hover:text-white"
+                    >
+                      Activity Feed
+                    </Link>
+                    <Link
                       href={`/u/${profile.username}`}
                       onClick={() => setUserMenuOpen(false)}
                       className="block px-4 py-2 text-[#9ab] hover:bg-[#242c34] hover:text-white"
@@ -122,9 +129,9 @@ export function SiteHeader({ theme = "light" }: { theme?: "dark" | "light" }) {
 
             {/* Activity Lightning Icon */}
             <Link
-              href="/library"
+              href="/feed"
               className="text-[#9ab] hover:text-[#00e054] transition text-sm px-1"
-              title="Activity"
+              title="Activity Feed"
             >
               ⚡
             </Link>
@@ -220,6 +227,12 @@ export function SiteHeader({ theme = "light" }: { theme?: "dark" | "light" }) {
         </Link>
         {profile ? (
           <>
+            <Link
+              className="rounded-full px-3 py-2 font-medium text-[var(--muted)] hover:text-[var(--ink)]"
+              href="/feed"
+            >
+              Feed
+            </Link>
             <Link
               className="rounded-full px-3 py-2 font-medium text-[var(--muted)] hover:text-[var(--ink)]"
               href={`/u/${profile.username}`}

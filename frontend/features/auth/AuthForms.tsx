@@ -50,11 +50,15 @@ export function LoginForm() {
       router.replace("/");
       router.refresh();
     } catch (error) {
-      setSubmitError(
-        error instanceof ApiError && error.code === "invalid_credentials"
-          ? "That username, email, or password didn’t match."
-          : "We couldn’t sign you in. Try again in a moment.",
-      );
+      if (error instanceof ApiError) {
+        if (error.code === "invalid_credentials") {
+          setSubmitError("That username, email, or password didn’t match.");
+          return;
+        }
+        setSubmitError(error.message);
+        return;
+      }
+      setSubmitError("We couldn’t sign you in. Try again in a moment.");
     }
   }
 
@@ -121,11 +125,21 @@ export function RegisterForm() {
       router.replace("/verify-email/pending");
       router.refresh();
     } catch (error) {
-      setSubmitError(
-        error instanceof ApiError && error.code === "registration_unavailable"
-          ? error.message
-          : "We couldn’t create your account. Check your details and try again.",
-      );
+      if (error instanceof ApiError) {
+        if (error.code === "registration_unavailable" || error.status === 409) {
+          setSubmitError(
+            "An account with this email or username already exists. Try signing in instead.",
+          );
+          return;
+        }
+        if (error.code === "rate_limit_exceeded" || error.status === 429) {
+          setSubmitError("Too many signup attempts. Please wait a moment and try again.");
+          return;
+        }
+        setSubmitError(error.message);
+        return;
+      }
+      setSubmitError("We couldn’t create your account. Please try again in a moment.");
     }
   }
 

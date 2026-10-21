@@ -48,6 +48,7 @@ export async function apiRequest<T>(
 
   const parsed = schema.safeParse(body);
   if (!parsed.success) {
+    console.error("API response validation error:", parsed.error, body);
     throw new ApiError(
       "The server returned an unexpected response",
       response.status,

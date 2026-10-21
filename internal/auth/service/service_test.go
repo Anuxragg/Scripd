@@ -205,7 +205,121 @@ func (s *memoryStore) VerifyEmail(_ context.Context, tokenHash []byte) error {
 	return nil
 }
 
+func (s *memoryStore) GetUserByID(_ context.Context, id string) (authdomain.User, error) {
+	if s.user.ID != id {
+		return authdomain.User{}, authdomain.ErrNotFound
+	}
+	return s.user, nil
+}
+
+func (s *memoryStore) UpdatePassword(_ context.Context, userID, passwordHash string) error {
+	if s.user.ID != userID {
+		return authdomain.ErrNotFound
+	}
+	s.user.PasswordHash = passwordHash
+	return nil
+}
+
+func (s *memoryStore) RevokeAllUserSessions(_ context.Context, userID string) error {
+	for k, v := range s.sessions {
+		if v.userID == userID {
+			v.revoked = true
+			s.sessions[k] = v
+		}
+	}
+	return nil
+}
+
+func (s *memoryStore) DeleteUser(_ context.Context, userID string) error {
+	if s.user.ID != userID {
+		return authdomain.ErrNotFound
+	}
+	s.user = authdomain.User{}
+	for k, v := range s.sessions {
+		if v.userID == userID {
+			delete(s.sessions, k)
+		}
+	}
+	return nil
+}
+
 func (s *memoryStore) nextID() string {
 	s.nextSession++
 	return fmt.Sprintf("00000000-0000-4000-8000-%012x", s.nextSession)
+}
+
+func TestChangePasswordSuccessAndRevokesSessions(t *testing.T) {
+	store := newMemoryStore()
+	svc := New(store, "test-access-secret-with-at-least-32-bytes")
+	result, err := svc.Register(t.Context(), "reader_one", "reader@example.com", "", "initial password 123")
+	if err != nil {
+		t.Fatalf("Register() error = %v", err)
+	}
+
+	err = svc.ChangePassword(t.Context(), result.User.ID, "initial password 123", "brand new password 456")
+	if err != nil {
+		t.Fatalf("ChangePassword() error = %v", err)
+	}
+
+	// Verify old session access token is revoked
+	if _, err := svc.CurrentUser(t.Context(), result.AccessToken); !errors.Is(err, ErrInvalidSession) {
+		t.Fatalf("CurrentUser() after password change error = %v, want ErrInvalidSession", err)
+	}
+
+	// Verify old password fails
+	if _, err := svc.Login(t.Context(), "reader@example.com", "initial password 123"); !errors.Is(err, ErrInvalidCredentials) {
+		t.Fatalf("Login() with old password error = %v, want ErrInvalidCredentials", err)
+	}
+
+	// Verify new password succeeds
+	newLogin, err := svc.Login(t.Context(), "reader@example.com", "brand new password 456")
+	if err != nil {
+		t.Fatalf("Login() with new password error = %v", err)
+	}
+	if newLogin.User.ID != result.User.ID {
+		t.Fatalf("newLogin user ID = %s, want %s", newLogin.User.ID, result.User.ID)
+	}
+}
+
+func TestChangePasswordValidations(t *testing.T) {
+	store := newMemoryStore()
+	svc := New(store, "test-access-secret-with-at-least-32-bytes")
+	result, err := svc.Register(t.Context(), "reader_one", "reader@example.com", "", "initial password 123")
+	if err != nil {
+		t.Fatalf("Register() error = %v", err)
+	}
+
+	// Wrong current password
+	if err := svc.ChangePassword(t.Context(), result.User.ID, "wrong password", "brand new password 456"); !errors.Is(err, ErrInvalidCredentials) {
+		t.Fatalf("ChangePassword() error = %v, want ErrInvalidCredentials", err)
+	}
+
+	// Short new password
+	if err := svc.ChangePassword(t.Context(), result.User.ID, "initial password 123", "short"); !errors.Is(err, ErrInvalidInput) {
+		t.Fatalf("ChangePassword() error = %v, want ErrInvalidInput", err)
+	}
+}
+
+func TestDeleteAccountSuccessAndRejectsWrongPassword(t *testing.T) {
+	store := newMemoryStore()
+	svc := New(store, "test-access-secret-with-at-least-32-bytes")
+	result, err := svc.Register(t.Context(), "reader_one", "reader@example.com", "", "initial password 123")
+	if err != nil {
+		t.Fatalf("Register() error = %v", err)
+	}
+
+	// Wrong password
+	if err := svc.DeleteAccount(t.Context(), result.User.ID, "wrong password"); !errors.Is(err, ErrInvalidCredentials) {
+		t.Fatalf("DeleteAccount() wrong password error = %v, want ErrInvalidCredentials", err)
+	}
+
+	// Correct password
+	if err := svc.DeleteAccount(t.Context(), result.User.ID, "initial password 123"); err != nil {
+		t.Fatalf("DeleteAccount() error = %v", err)
+	}
+
+	// Verify user is gone
+	if _, err := svc.Login(t.Context(), "reader@example.com", "initial password 123"); !errors.Is(err, ErrInvalidCredentials) {
+		t.Fatalf("Login() after deletion error = %v, want ErrInvalidCredentials", err)
+	}
 }

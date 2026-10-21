@@ -32,6 +32,8 @@ type authService interface {
 	Refresh(context.Context, string) (service.SessionResult, error)
 	Logout(context.Context, string) error
 	CurrentUser(context.Context, string) (service.Profile, error)
+	ChangePassword(context.Context, string, string, string) error
+	DeleteAccount(context.Context, string, string) error
 }
 
 type emailVerificationService interface {
@@ -62,6 +64,15 @@ type verifyEmailRequest struct {
 	Token string `json:"token"`
 }
 
+type changePasswordRequest struct {
+	CurrentPassword string `json:"current_password"`
+	NewPassword     string `json:"new_password"`
+}
+
+type deleteAccountRequest struct {
+	CurrentPassword string `json:"current_password"`
+}
+
 func New(service authService, secureCookies bool, origins []string, log zerolog.Logger) *Handler {
 	allowedOrigins := make(map[string]struct{}, len(origins))
 	for _, origin := range origins {
@@ -79,6 +90,8 @@ func (h *Handler) RegisterRoutes(router chi.Router) {
 		authRouter.With(platformmiddleware.RateLimit(30, 15*time.Minute)).Post("/logout", h.Logout)
 		authRouter.With(platformmiddleware.RateLimit(10, 15*time.Minute)).Post("/email/verify", h.VerifyEmail)
 		authRouter.With(platformmiddleware.RateLimit(3, time.Hour)).Post("/email/verification/resend", h.ResendEmailVerification)
+		authRouter.With(platformmiddleware.RateLimit(5, 15*time.Minute)).Post("/change-password", h.ChangePassword)
+		authRouter.With(platformmiddleware.RateLimit(5, 15*time.Minute)).Post("/delete-account", h.DeleteAccount)
 		authRouter.Get("/me", h.Me)
 	})
 }
@@ -234,6 +247,60 @@ func (h *Handler) Me(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	response.WriteJSON(w, http.StatusOK, profile)
+}
+
+func (h *Handler) ChangePassword(w http.ResponseWriter, r *http.Request) {
+	if !h.checkOrigin(w, r) {
+		return
+	}
+	cookie, err := r.Cookie(accessCookieName)
+	if err != nil || cookie.Value == "" {
+		response.WriteError(w, r, http.StatusUnauthorized, "unauthenticated", "authentication is required")
+		return
+	}
+	profile, err := h.service.CurrentUser(r.Context(), cookie.Value)
+	if err != nil {
+		h.writeFailure(w, r, err)
+		return
+	}
+	var request changePasswordRequest
+	if !decodeJSON(w, r, &request) || request.CurrentPassword == "" || request.NewPassword == "" {
+		response.WriteError(w, r, http.StatusBadRequest, "invalid_request", "request body is invalid")
+		return
+	}
+	if err := h.service.ChangePassword(r.Context(), profile.ID, request.CurrentPassword, request.NewPassword); err != nil {
+		h.writeFailure(w, r, err)
+		return
+	}
+	h.clearSessionCookies(w)
+	response.WriteJSON(w, http.StatusOK, map[string]string{"status": "password_updated"})
+}
+
+func (h *Handler) DeleteAccount(w http.ResponseWriter, r *http.Request) {
+	if !h.checkOrigin(w, r) {
+		return
+	}
+	cookie, err := r.Cookie(accessCookieName)
+	if err != nil || cookie.Value == "" {
+		response.WriteError(w, r, http.StatusUnauthorized, "unauthenticated", "authentication is required")
+		return
+	}
+	profile, err := h.service.CurrentUser(r.Context(), cookie.Value)
+	if err != nil {
+		h.writeFailure(w, r, err)
+		return
+	}
+	var request deleteAccountRequest
+	if !decodeJSON(w, r, &request) || request.CurrentPassword == "" {
+		response.WriteError(w, r, http.StatusBadRequest, "invalid_request", "request body is invalid")
+		return
+	}
+	if err := h.service.DeleteAccount(r.Context(), profile.ID, request.CurrentPassword); err != nil {
+		h.writeFailure(w, r, err)
+		return
+	}
+	h.clearSessionCookies(w)
+	response.WriteJSON(w, http.StatusOK, map[string]string{"status": "account_deleted"})
 }
 
 func (h *Handler) checkOrigin(w http.ResponseWriter, r *http.Request) bool {

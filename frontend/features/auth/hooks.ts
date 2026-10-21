@@ -8,6 +8,10 @@ import {
   resendEmailVerification,
   register,
   verifyEmail,
+  changePassword,
+  deleteAccount,
+  type ChangePasswordInput,
+  type DeleteAccountInput,
   type LoginInput,
   type Profile,
   type RegisterInput,
@@ -58,4 +62,20 @@ export function useVerifyEmail() {
 
 export function useResendEmailVerification() {
   return useMutation({ mutationFn: resendEmailVerification });
+}
+
+export function useChangePassword() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (input: ChangePasswordInput) => changePassword(input),
+    onSuccess: () => queryClient.setQueryData(currentUserKey, null),
+  });
+}
+
+export function useDeleteAccount() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (input: DeleteAccountInput) => deleteAccount(input),
+    onSuccess: () => queryClient.setQueryData(currentUserKey, null),
+  });
 }

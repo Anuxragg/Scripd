@@ -103,3 +103,75 @@ func (s *stubAuthService) Logout(context.Context, string) error {
 func (s *stubAuthService) CurrentUser(context.Context, string) (service.Profile, error) {
 	return s.result.User, nil
 }
+
+func (s *stubAuthService) ChangePassword(context.Context, string, string, string) error {
+	return nil
+}
+
+func (s *stubAuthService) DeleteAccount(context.Context, string, string) error {
+	return nil
+}
+
+func TestChangePasswordClearsCookiesAndReturnsStatus(t *testing.T) {
+	stub := &stubAuthService{result: service.SessionResult{
+		User: service.Profile{ID: "7f5e4d3c-2b1a-4f09-8e7d-6c5b4a392817", Username: "reader_one"},
+	}}
+	router := chi.NewRouter()
+	New(stub, true, []string{"https://app.example"}, zerolog.Nop()).RegisterRoutes(router)
+
+	request := httptest.NewRequest(http.MethodPost, "/auth/change-password", strings.NewReader(`{"current_password":"oldPassword123","new_password":"newPassword123"}`))
+	request.Header.Set("Content-Type", "application/json")
+	request.Header.Set("Origin", "https://app.example")
+	request.AddCookie(&http.Cookie{Name: accessCookieName, Value: "valid-access-token"})
+
+	response := httptest.NewRecorder()
+	router.ServeHTTP(response, request)
+
+	if response.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d: %s", response.Code, http.StatusOK, response.Body.String())
+	}
+	if !strings.Contains(response.Body.String(), `"status":"password_updated"`) {
+		t.Fatalf("unexpected body: %s", response.Body.String())
+	}
+	cookies := response.Result().Cookies()
+	if len(cookies) != 2 {
+		t.Fatalf("cookie count = %d, want 2", len(cookies))
+	}
+	for _, cookie := range cookies {
+		if cookie.MaxAge != -1 || cookie.Value != "" {
+			t.Errorf("cookie %q was not cleared: %#v", cookie.Name, cookie)
+		}
+	}
+}
+
+func TestDeleteAccountClearsCookiesAndReturnsStatus(t *testing.T) {
+	stub := &stubAuthService{result: service.SessionResult{
+		User: service.Profile{ID: "7f5e4d3c-2b1a-4f09-8e7d-6c5b4a392817", Username: "reader_one"},
+	}}
+	router := chi.NewRouter()
+	New(stub, true, []string{"https://app.example"}, zerolog.Nop()).RegisterRoutes(router)
+
+	request := httptest.NewRequest(http.MethodPost, "/auth/delete-account", strings.NewReader(`{"current_password":"oldPassword123"}`))
+	request.Header.Set("Content-Type", "application/json")
+	request.Header.Set("Origin", "https://app.example")
+	request.AddCookie(&http.Cookie{Name: accessCookieName, Value: "valid-access-token"})
+
+	response := httptest.NewRecorder()
+	router.ServeHTTP(response, request)
+
+	if response.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d: %s", response.Code, http.StatusOK, response.Body.String())
+	}
+	if !strings.Contains(response.Body.String(), `"status":"account_deleted"`) {
+		t.Fatalf("unexpected body: %s", response.Body.String())
+	}
+	cookies := response.Result().Cookies()
+	if len(cookies) != 2 {
+		t.Fatalf("cookie count = %d, want 2", len(cookies))
+	}
+	for _, cookie := range cookies {
+		if cookie.MaxAge != -1 || cookie.Value != "" {
+			t.Errorf("cookie %q was not cleared: %#v", cookie.Name, cookie)
+		}
+	}
+}

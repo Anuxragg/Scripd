@@ -30,6 +30,16 @@ const resendVerificationResponseSchema = z.object({
   meta: z.record(z.string(), z.unknown()),
 });
 
+const changePasswordResponseSchema = z.object({
+  data: z.object({ status: z.string() }),
+  meta: z.record(z.string(), z.unknown()),
+});
+
+const deleteAccountResponseSchema = z.object({
+  data: z.object({ status: z.string() }),
+  meta: z.record(z.string(), z.unknown()),
+});
+
 export type Profile = z.infer<typeof profileSchema>;
 
 export type RegisterInput = {
@@ -42,6 +52,15 @@ export type RegisterInput = {
 export type LoginInput = {
   identifier: string;
   password: string;
+};
+
+export type ChangePasswordInput = {
+  current_password: string;
+  new_password: string;
+};
+
+export type DeleteAccountInput = {
+  current_password: string;
 };
 
 function jsonRequest(body: unknown): RequestInit {
@@ -89,6 +108,22 @@ export function resendEmailVerification(): Promise<void> {
     "/api/v1/auth/email/verification/resend",
     resendVerificationResponseSchema,
     jsonRequest({}),
+  ).then(() => undefined);
+}
+
+export function changePassword(input: ChangePasswordInput): Promise<void> {
+  return apiRequest(
+    "/api/v1/auth/change-password",
+    changePasswordResponseSchema,
+    jsonRequest(input),
+  ).then(() => undefined);
+}
+
+export function deleteAccount(input: DeleteAccountInput): Promise<void> {
+  return apiRequest(
+    "/api/v1/auth/delete-account",
+    deleteAccountResponseSchema,
+    jsonRequest(input),
   ).then(() => undefined);
 }
 

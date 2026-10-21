@@ -239,6 +239,60 @@ func (r *Postgres) VerifyEmail(ctx context.Context, tokenHash []byte) error {
 	return nil
 }
 
+func (r *Postgres) GetUserByID(ctx context.Context, id string) (authdomain.User, error) {
+	query := `
+		SELECT id::text, username, email, COALESCE(display_name, ''), password_hash,
+		       email_verified_at IS NOT NULL, created_at, updated_at
+		FROM users
+		WHERE id = $1::uuid`
+	user, err := scanUser(r.pool.QueryRow(ctx, query, id))
+	if errors.Is(err, pgx.ErrNoRows) {
+		return authdomain.User{}, authdomain.ErrNotFound
+	}
+	if err != nil {
+		return authdomain.User{}, err
+	}
+	return user, nil
+}
+
+func (r *Postgres) UpdatePassword(ctx context.Context, userID, passwordHash string) error {
+	cmd, err := r.pool.Exec(ctx, `
+		UPDATE users
+		SET password_hash = $2, updated_at = now()
+		WHERE id = $1::uuid`, userID, passwordHash)
+	if err != nil {
+		return fmt.Errorf("update user password: %w", err)
+	}
+	if cmd.RowsAffected() == 0 {
+		return authdomain.ErrNotFound
+	}
+	return nil
+}
+
+func (r *Postgres) RevokeAllUserSessions(ctx context.Context, userID string) error {
+	_, err := r.pool.Exec(ctx, `
+		UPDATE auth_sessions
+		SET revoked_at = now()
+		WHERE user_id = $1::uuid AND revoked_at IS NULL`, userID)
+	if err != nil {
+		return fmt.Errorf("revoke all user sessions: %w", err)
+	}
+	return nil
+}
+
+func (r *Postgres) DeleteUser(ctx context.Context, userID string) error {
+	cmd, err := r.pool.Exec(ctx, `
+		DELETE FROM users
+		WHERE id = $1::uuid`, userID)
+	if err != nil {
+		return fmt.Errorf("delete user: %w", err)
+	}
+	if cmd.RowsAffected() == 0 {
+		return authdomain.ErrNotFound
+	}
+	return nil
+}
+
 func getUserByID(ctx context.Context, q queryRower, id string) (authdomain.User, error) {
 	query := `
 		SELECT id::text, username, email, COALESCE(display_name, ''),

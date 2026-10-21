@@ -99,6 +99,13 @@ export function SiteHeader({ theme = "light" }: { theme?: "dark" | "light" }) {
                     >
                       Book Catalog
                     </Link>
+                    <Link
+                      href="/settings"
+                      onClick={() => setUserMenuOpen(false)}
+                      className="block px-4 py-2 text-[#9ab] hover:bg-[#242c34] hover:text-white"
+                    >
+                      Account Settings
+                    </Link>
                     <button
                       type="button"
                       disabled={logoutMutation.isPending}

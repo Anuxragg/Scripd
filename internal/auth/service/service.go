@@ -54,6 +54,10 @@ type Store interface {
 	RevokeSession(context.Context, string, []byte) error
 	IssueEmailVerification(context.Context, string, []byte, time.Time) (string, bool, error)
 	VerifyEmail(context.Context, []byte) error
+	GetUserByID(context.Context, string) (authdomain.User, error)
+	UpdatePassword(context.Context, string, string) error
+	RevokeAllUserSessions(context.Context, string) error
+	DeleteUser(context.Context, string) error
 }
 
 type VerificationMailer interface {
@@ -274,6 +278,56 @@ func (s *Service) CurrentUser(ctx context.Context, accessToken string) (Profile,
 		return Profile{}, err
 	}
 	return profileFromUser(user), nil
+}
+
+func (s *Service) ChangePassword(ctx context.Context, userID, currentPassword, newPassword string) error {
+	if strings.TrimSpace(userID) == "" || currentPassword == "" || len(currentPassword) > maximumPasswordBytes {
+		return ErrInvalidInput
+	}
+	if utf8.RuneCountInString(newPassword) < minimumPasswordRunes || len(newPassword) > maximumPasswordBytes {
+		return ErrInvalidInput
+	}
+	user, err := s.store.GetUserByID(ctx, userID)
+	if errors.Is(err, authdomain.ErrNotFound) {
+		return ErrInvalidSession
+	}
+	if err != nil {
+		return fmt.Errorf("load user for password update: %w", err)
+	}
+	if !verifyPassword(currentPassword, user.PasswordHash) {
+		return ErrInvalidCredentials
+	}
+	newHash, err := hashPassword(newPassword)
+	if err != nil {
+		return fmt.Errorf("hash new password: %w", err)
+	}
+	if err := s.store.UpdatePassword(ctx, userID, newHash); err != nil {
+		return fmt.Errorf("persist new password: %w", err)
+	}
+	if err := s.store.RevokeAllUserSessions(ctx, userID); err != nil {
+		return fmt.Errorf("revoke sessions after password update: %w", err)
+	}
+	return nil
+}
+
+func (s *Service) DeleteAccount(ctx context.Context, userID, currentPassword string) error {
+	if strings.TrimSpace(userID) == "" || currentPassword == "" || len(currentPassword) > maximumPasswordBytes {
+		return ErrInvalidInput
+	}
+	user, err := s.store.GetUserByID(ctx, userID)
+	if errors.Is(err, authdomain.ErrNotFound) {
+		return ErrInvalidSession
+	}
+	if err != nil {
+		return fmt.Errorf("load user for account deletion: %w", err)
+	}
+	if !verifyPassword(currentPassword, user.PasswordHash) {
+		return ErrInvalidCredentials
+	}
+	if err := s.store.DeleteUser(ctx, userID); err != nil {
+		return fmt.Errorf("delete user account: %w", err)
+	}
+	return nil
 }
 
 func (s *Service) startSession(ctx context.Context, user authdomain.User) (SessionResult, error) {

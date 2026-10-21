@@ -43,17 +43,26 @@ export function ImageCropModal({ imageSrc, onCrop, onCancel }: ImageCropModalPro
 
   useEffect(() => {
     if (!imageSrc) return;
-    setImageLoaded(false);
 
-    // Preload image object to immediately capture dimensions even if cached
+    let canceled = false;
     const preloader = new window.Image();
     preloader.src = imageSrc;
     preloader.onload = () => {
-      initDimensions(preloader.naturalWidth, preloader.naturalHeight);
+      if (!canceled) {
+        initDimensions(preloader.naturalWidth, preloader.naturalHeight);
+      }
     };
     if (preloader.complete && preloader.naturalWidth > 0) {
-      initDimensions(preloader.naturalWidth, preloader.naturalHeight);
+      requestAnimationFrame(() => {
+        if (!canceled && preloader.naturalWidth > 0) {
+          initDimensions(preloader.naturalWidth, preloader.naturalHeight);
+        }
+      });
     }
+
+    return () => {
+      canceled = true;
+    };
   }, [imageSrc]);
 
   // Clamp pan so the crop circle never goes outside the bounds of the photo

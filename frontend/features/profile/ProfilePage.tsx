@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useCurrentUser } from "@/features/auth/hooks";
 import {
   useProfile,

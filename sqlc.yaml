@@ -12,6 +12,8 @@ sql:
       - migrations/000008_create_reviews.up.sql
       - migrations/000009_create_follows.up.sql
       - migrations/000010_create_likes_and_comments.up.sql
+      - migrations/000011_enable_rls_and_revoke_public_data_api.up.sql
+      - migrations/000012_fix_function_search_path.up.sql
     queries: sqlc/queries
     gen:
       go:

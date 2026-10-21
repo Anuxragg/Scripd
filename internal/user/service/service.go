@@ -81,4 +81,4 @@ func (s *Service) UpdateProfile(ctx context.Context, userID string, input user.U
 	}
 
 	return s.store.Update(ctx, userID, input)
-}
+} 

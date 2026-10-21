@@ -27,29 +27,39 @@ export function ProfilePage({ username }: { username: string }) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isQRModalOpen, setIsQRModalOpen] = useState(false);
   const [linkCopied, setLinkCopied] = useState(false);
-  const [userLocation, setUserLocation] = useState("Ind");
-  const [userWebsite, setUserWebsite] = useState("");
+  const [userLocation] = useState(() => {
+    if (typeof window === "undefined") return "Ind";
+    try {
+      const savedMeta = localStorage.getItem(`scripd_user_meta_${username}`);
+      if (savedMeta) {
+        const parsed = JSON.parse(savedMeta);
+        return parsed.location || "Ind";
+      }
+    } catch {
+      // ignore
+    }
+    return "Ind";
+  });
+
+  const [userWebsite] = useState(() => {
+    if (typeof window === "undefined") return "";
+    try {
+      const savedMeta = localStorage.getItem(`scripd_user_meta_${username}`);
+      if (savedMeta) {
+        const parsed = JSON.parse(savedMeta);
+        return parsed.website || "";
+      }
+    } catch {
+      // ignore
+    }
+    return "";
+  });
 
   const currentUserID = userQuery.data?.id;
   const profile = profileQuery.data;
   const isOwner = Boolean(currentUserID && profile && currentUserID === profile.id);
 
   const [activeTab, setActiveTab] = useState<TabKey>("profile");
-
-  useEffect(() => {
-    if (profile?.username) {
-      try {
-        const savedMeta = localStorage.getItem(`scripd_user_meta_${profile.username}`);
-        if (savedMeta) {
-          const parsed = JSON.parse(savedMeta);
-          if (parsed.location) setUserLocation(parsed.location);
-          if (parsed.website) setUserWebsite(parsed.website);
-        }
-      } catch {
-        // ignore
-      }
-    }
-  }, [profile?.username]);
 
   // Load user's reads (for favorite books, recent activity, diary, want to read)
   const readsQuery = useReadEntries({ limit: 24 }, isOwner);

@@ -2,17 +2,17 @@ import { z } from "zod";
 import { ApiError, apiRequest } from "@/lib/api/client";
 
 export const profileSchema = z.object({
-  id: z.string().uuid(),
+  id: z.string(),
   username: z.string(),
-  email: z.email(),
+  email: z.string(),
   display_name: z.string(),
   email_verified: z.boolean(),
-  created_at: z.iso.datetime(),
+  created_at: z.string(),
 });
 
 const profileResponseSchema = z.object({
   data: profileSchema,
-  meta: z.record(z.string(), z.unknown()),
+  meta: z.unknown().optional(),
 });
 
 const logoutResponseSchema = z.object({

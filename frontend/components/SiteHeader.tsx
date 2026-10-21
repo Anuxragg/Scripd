@@ -86,6 +86,13 @@ export function SiteHeader({ theme = "light" }: { theme?: "dark" | "light" }) {
                       Public Profile
                     </Link>
                     <Link
+                      href="/edit-profile"
+                      onClick={() => setUserMenuOpen(false)}
+                      className="block px-4 py-2 text-[#9ab] hover:bg-[#242c34] hover:text-white"
+                    >
+                      Edit Profile
+                    </Link>
+                    <Link
                       href="/library"
                       onClick={() => setUserMenuOpen(false)}
                       className="block px-4 py-2 text-[#9ab] hover:bg-[#242c34] hover:text-white"

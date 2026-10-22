@@ -2,19 +2,19 @@ import { z } from "zod";
 import { apiRequest } from "@/lib/api/client";
 
 const bookSchema = z.object({
-  id: z.string().uuid(),
+  id: z.string(),
   open_library_key: z.string(),
-  isbn13: z.string().optional(),
+  isbn13: z.string().optional().nullable(),
   title: z.string(),
-  subtitle: z.string().optional(),
+  subtitle: z.string().optional().nullable(),
   authors: z.array(z.string()),
-  cover_url: z.url().optional(),
-  published_year: z.number().int().optional(),
-  description: z.string().optional(),
-  open_library_url: z.url(),
-  metadata_synced_at: z.iso.datetime(),
-  created_at: z.iso.datetime(),
-  updated_at: z.iso.datetime(),
+  cover_url: z.string().optional().nullable(),
+  published_year: z.number().int().optional().nullable(),
+  description: z.string().optional().nullable(),
+  open_library_url: z.string().optional().nullable(),
+  metadata_synced_at: z.string(),
+  created_at: z.string(),
+  updated_at: z.string(),
 });
 
 const searchResponseSchema = z.object({

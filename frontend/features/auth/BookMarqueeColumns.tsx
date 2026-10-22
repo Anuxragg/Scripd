@@ -197,13 +197,7 @@ function BookCard({ book }: { book: BookItem }) {
   );
 }
 
-function MarqueeColumn({
-  books,
-  animationClass,
-}: {
-  books: BookItem[];
-  animationClass: string;
-}) {
+function MarqueeColumn({ books, animationClass }: { books: BookItem[]; animationClass: string }) {
   // Duplicate for seamless 50% loop
   const duplicated = [...books, ...books];
 

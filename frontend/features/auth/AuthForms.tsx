@@ -389,7 +389,6 @@ export function LoginForm() {
                   spellCheck={false}
                   required
                 />
-                
               </div>
 
               {submitError && (
@@ -410,8 +409,7 @@ export function LoginForm() {
             <div className="space-y-4">
               <div className="text-center">
                 <p className="text-xs text-gray-500">
-                  Enter the 6-digit code sent to{" "}
-                  <strong className="text-gray-800">{email}</strong>
+                  Enter the 6-digit code sent to <strong className="text-gray-800">{email}</strong>
                   <button
                     type="button"
                     onClick={() => {

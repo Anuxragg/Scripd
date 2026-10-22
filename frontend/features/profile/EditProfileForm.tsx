@@ -123,9 +123,7 @@ function EditProfileFields({
         } catch (uploadErr) {
           setIsUploadingPhoto(false);
           const errorMsg =
-            uploadErr instanceof Error
-              ? uploadErr.message
-              : "Failed to upload avatar to Supabase.";
+            uploadErr instanceof Error ? uploadErr.message : "Failed to upload avatar to Supabase.";
           setStatusMessage({ type: "error", text: errorMsg });
           return;
         }

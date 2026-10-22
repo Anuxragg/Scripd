@@ -6,8 +6,7 @@
 function getSupabaseConfig() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim().replace(/\/$/, "");
   const anonKey = (
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
-    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
   )?.trim();
 
   if (!url || !anonKey) {
@@ -43,12 +42,7 @@ export async function sendSupabaseOtp(email: string): Promise<void> {
     let message = "Failed to send verification code.";
     try {
       const parsed = JSON.parse(errorBody);
-      message =
-        parsed.msg ||
-        parsed.message ||
-        parsed.error_description ||
-        parsed.error ||
-        message;
+      message = parsed.msg || parsed.message || parsed.error_description || parsed.error || message;
     } catch {
       // ignore parse error
     }
@@ -68,10 +62,7 @@ export interface VerifyOtpResult {
 /**
  * Verifies the 6-digit OTP code with Supabase Auth and returns the authenticated session.
  */
-export async function verifySupabaseOtp(
-  email: string,
-  token: string,
-): Promise<VerifyOtpResult> {
+export async function verifySupabaseOtp(email: string, token: string): Promise<VerifyOtpResult> {
   const { url, anonKey } = getSupabaseConfig();
 
   const response = await fetch(`${url}/auth/v1/verify`, {
@@ -93,12 +84,7 @@ export async function verifySupabaseOtp(
     let message = "Invalid or expired verification code.";
     try {
       const parsed = JSON.parse(errorBody);
-      message =
-        parsed.msg ||
-        parsed.message ||
-        parsed.error_description ||
-        parsed.error ||
-        message;
+      message = parsed.msg || parsed.message || parsed.error_description || parsed.error || message;
     } catch {
       // ignore parse error
     }

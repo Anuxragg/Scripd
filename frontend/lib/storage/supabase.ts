@@ -9,12 +9,9 @@ export async function uploadAvatarToSupabase(
 ): Promise<string> {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim().replace(/\/$/, "");
   const supabaseAnonKey = (
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
-    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
   )?.trim();
-  const bucketName = (
-    process.env.NEXT_PUBLIC_SUPABASE_AVATARS_BUCKET || "avatars"
-  ).trim();
+  const bucketName = (process.env.NEXT_PUBLIC_SUPABASE_AVATARS_BUCKET || "avatars").trim();
 
   if (!supabaseUrl || !supabaseAnonKey) {
     throw new Error(

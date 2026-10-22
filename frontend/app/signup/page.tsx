@@ -1,14 +1,19 @@
-import { AuthPage } from "@/features/auth/AuthPage";
+import { AuthLayout } from "@/features/auth/AuthLayout";
 import { RegisterForm } from "@/features/auth/AuthForms";
+
+export const metadata = {
+  title: "Sign Up — Scripd",
+  description: "Create an account on Scripd to track your reading and book reviews.",
+};
 
 export default function SignUpPage() {
   return (
-    <AuthPage
-      eyebrow="Start your reading log"
-      title="Make room for more good books."
-      description="Create a home for the books you finish, the ones you love, and the readers who help you find the next one."
+    <AuthLayout
+      footerText="Already have an account?"
+      footerLinkText="Log In"
+      footerLinkHref="/login"
     >
       <RegisterForm />
-    </AuthPage>
+    </AuthLayout>
   );
 }

@@ -8,6 +8,7 @@ import { useCurrentUser } from "@/features/auth/hooks";
 import { useProfile, useUpdateProfile } from "@/features/profile/hooks";
 import type { PublicProfile } from "@/features/profile/api";
 import { ImageCropModal } from "@/features/profile/ImageCropModal";
+import { uploadAvatarToSupabase } from "@/lib/storage/supabase";
 
 interface EditProfileFormProps {
   onSuccess?: () => void;
@@ -18,9 +19,9 @@ interface EditProfileFormProps {
 const graphikLabelStyle: React.CSSProperties = {
   fontFamily:
     'GraphikWeb, -apple-system, BlinkMacSystemFont, "Segoe UI", "Hiragino Sans", Meiryo, sans-serif, ColorEmoji',
-  fontSize: "13px",
-  fontWeight: 700,
-  lineHeight: "17px",
+  fontSize: "16px",
+  fontWeight: 500,
+  lineHeight: "24px",
   color: "rgb(255, 255, 255)",
 };
 
@@ -99,6 +100,8 @@ function EditProfileFields({
     e.target.value = "";
   }
 
+  const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
+
   const displayInitial = (
     givenName ? `${givenName[0]}${familyName ? familyName[0] : ""}` : profile.username.slice(0, 2)
   ).toUpperCase();
@@ -108,12 +111,31 @@ function EditProfileFields({
     setStatusMessage(null);
 
     const fullDisplayName = [givenName.trim(), familyName.trim()].filter(Boolean).join(" ");
+    let finalAvatarURL = avatarURL.trim();
 
     try {
+      // If user uploaded/cropped a new image, it starts with "data:image..."
+      if (finalAvatarURL.startsWith("data:")) {
+        setIsUploadingPhoto(true);
+        try {
+          finalAvatarURL = await uploadAvatarToSupabase(finalAvatarURL, profile.id);
+          setAvatarURL(finalAvatarURL);
+        } catch (uploadErr) {
+          setIsUploadingPhoto(false);
+          const errorMsg =
+            uploadErr instanceof Error
+              ? uploadErr.message
+              : "Failed to upload avatar to Supabase.";
+          setStatusMessage({ type: "error", text: errorMsg });
+          return;
+        }
+        setIsUploadingPhoto(false);
+      }
+
       await updateMutation.mutateAsync({
         display_name: fullDisplayName,
         bio: bio.trim(),
-        avatar_url: avatarURL.trim(),
+        avatar_url: finalAvatarURL,
       });
 
       try {
@@ -135,6 +157,7 @@ function EditProfileFields({
         }, 800);
       }
     } catch {
+      setIsUploadingPhoto(false);
       setStatusMessage({
         type: "error",
         text: "Unable to save profile changes. Please check your connection and try again.",
@@ -159,15 +182,12 @@ function EditProfileFields({
           >
             Edit Profile
           </h1>
-          <p className="mt-1 text-xs text-[#8fa0b5]">
-            Manage your public presence and account information.
-          </p>
         </div>
         {isModal && onCancel && (
           <button
             type="button"
             onClick={onCancel}
-            className="flex h-8 w-8 items-center justify-center rounded-full bg-[#1e2530] text-[#8fa0b5] hover:bg-[#2b3544] hover:text-white transition text-sm cursor-pointer"
+            className="flex h-8 w-8 items-center justify-center rounded-full border border-[#2c2d30] bg-[#161718] text-[#8fa0b5] hover:bg-[#202224] hover:text-white transition text-sm cursor-pointer"
             aria-label="Close dialog"
           >
             ✕
@@ -189,10 +209,10 @@ function EditProfileFields({
 
       <form onSubmit={handleSubmit} className="space-y-6">
         {/* Profile Photo Card (Screenshot 2 Design) */}
-        <div className="rounded-2xl border border-[#242b35] bg-[#14181f] p-5 sm:p-6 transition hover:border-[#2f3947]">
+        <div className="rounded-2xl border border-[#2c2d30] bg-[#161718] p-5 sm:p-6 transition hover:border-[#383a3e]">
           <div className="flex items-center gap-5">
             {/* Avatar Circle */}
-            <div className="relative flex h-16 w-16 sm:h-20 sm:w-20 shrink-0 items-center justify-center overflow-hidden rounded-full border border-[#2e3746] bg-[#1d242e] text-xl font-bold text-white shadow-inner">
+            <div className="relative flex h-16 w-16 sm:h-20 sm:w-20 shrink-0 items-center justify-center overflow-hidden rounded-full border border-[#2c2d30] bg-[#161718] text-xl font-bold text-white shadow-inner">
               {avatarURL ? (
                 <Image
                   src={avatarURL}
@@ -208,9 +228,9 @@ function EditProfileFields({
             </div>
 
             {/* Photo Info & Change Photo Action */}
-            <div className="flex-1">
+            <div className="flex-1 flex flex-col gap-1.5">
               <h2 style={graphikLabelStyle}>Profile Photo</h2>
-              <p className="text-xs sm:text-sm text-[#8fa0b5] mt-0.5">
+              <p className="text-xs sm:text-sm text-[#8fa0b5] leading-normal">
                 Add or replace your profile photo
               </p>
 
@@ -224,15 +244,17 @@ function EditProfileFields({
                 onChange={handleFileChange}
               />
 
-              <label
-                htmlFor="profile-photo-file-input"
-                onClick={() => {
-                  if (fileInputRef.current) fileInputRef.current.value = "";
-                }}
-                className="mt-2 inline-flex items-center gap-1.5 text-xs sm:text-sm font-semibold text-[#a78bfa] hover:text-[#c4b5fd] transition cursor-pointer select-none"
-              >
-                Change Photo
-              </label>
+              <div>
+                <label
+                  htmlFor="profile-photo-file-input"
+                  onClick={() => {
+                    if (fileInputRef.current) fileInputRef.current.value = "";
+                  }}
+                  className="inline-flex items-center gap-1.5 text-xs sm:text-sm font-semibold text-[#a78bfa] hover:text-[#c4b5fd] transition cursor-pointer select-none"
+                >
+                  Change Photo
+                </label>
+              </div>
             </div>
           </div>
         </div>
@@ -268,7 +290,7 @@ function EditProfileFields({
                   readOnly
                   disabled
                   value={profile.username}
-                  className="w-full rounded-xl border border-[#242b35] bg-[#0c0f14]/80 px-4 py-3 text-sm text-[#8fa0b5] cursor-not-allowed select-none"
+                  className="w-full rounded-xl border border-[#2c2d30] bg-[#161718] px-4 py-3 text-sm text-[#8fa0b5] cursor-not-allowed select-none"
                 />
               </div>
             </div>
@@ -285,7 +307,7 @@ function EditProfileFields({
                   onChange={(e) => setGivenName(e.target.value)}
                   placeholder="Anurag"
                   maxLength={40}
-                  className="w-full rounded-xl border border-[#242b35] bg-[#0c0f14] px-4 py-3 text-sm text-white placeholder-[#505d6e] focus:border-[#8b5cf6] focus:outline-none transition"
+                  className="w-full rounded-xl border border-[#2c2d30] bg-[#161718] px-4 py-3 text-sm text-white placeholder-[#505d6e] focus:border-[#8b5cf6] focus:outline-none transition"
                 />
               </div>
 
@@ -299,7 +321,7 @@ function EditProfileFields({
                   onChange={(e) => setFamilyName(e.target.value)}
                   placeholder="Pal"
                   maxLength={40}
-                  className="w-full rounded-xl border border-[#242b35] bg-[#0c0f14] px-4 py-3 text-sm text-white placeholder-[#505d6e] focus:border-[#8b5cf6] focus:outline-none transition"
+                  className="w-full rounded-xl border border-[#2c2d30] bg-[#161718] px-4 py-3 text-sm text-white placeholder-[#505d6e] focus:border-[#8b5cf6] focus:outline-none transition"
                 />
               </div>
             </div>
@@ -314,7 +336,7 @@ function EditProfileFields({
                 readOnly
                 disabled
                 value={userEmail || ""}
-                className="w-full rounded-xl border border-[#242b35] bg-[#0c0f14]/80 px-4 py-3 text-sm text-[#8fa0b5] cursor-not-allowed select-none"
+                className="w-full rounded-xl border border-[#2c2d30] bg-[#161718] px-4 py-3 text-sm text-[#8fa0b5] cursor-not-allowed select-none"
               />
             </div>
 
@@ -330,7 +352,7 @@ function EditProfileFields({
                   onChange={(e) => setLocation(e.target.value)}
                   placeholder="Ind"
                   maxLength={50}
-                  className="w-full rounded-xl border border-[#242b35] bg-[#0c0f14] px-4 py-3 text-sm text-white placeholder-[#505d6e] focus:border-[#8b5cf6] focus:outline-none transition"
+                  className="w-full rounded-xl border border-[#2c2d30] bg-[#161718] px-4 py-3 text-sm text-white placeholder-[#505d6e] focus:border-[#8b5cf6] focus:outline-none transition"
                 />
               </div>
 
@@ -344,7 +366,7 @@ function EditProfileFields({
                   onChange={(e) => setWebsite(e.target.value)}
                   placeholder="https://yourwebsite.com"
                   maxLength={120}
-                  className="w-full rounded-xl border border-[#242b35] bg-[#0c0f14] px-4 py-3 text-sm text-white placeholder-[#505d6e] focus:border-[#8b5cf6] focus:outline-none transition"
+                  className="w-full rounded-xl border border-[#2c2d30] bg-[#161718] px-4 py-3 text-sm text-white placeholder-[#505d6e] focus:border-[#8b5cf6] focus:outline-none transition"
                 />
               </div>
             </div>
@@ -361,27 +383,27 @@ function EditProfileFields({
                 onChange={(e) => setBio(e.target.value)}
                 maxLength={500}
                 placeholder="Write a short bio to tell people more about yourself..."
-                className="w-full rounded-xl border border-[#242b35] bg-[#0c0f14] p-4 text-sm text-white placeholder-[#505d6e] focus:border-[#8b5cf6] focus:outline-none resize-none min-h-[120px] transition"
+                className="w-full rounded-xl border border-[#2c2d30] bg-[#161718] p-4 text-sm text-white placeholder-[#505d6e] focus:border-[#8b5cf6] focus:outline-none resize-none min-h-[120px] transition"
               />
             </div>
           </div>
         </div>
 
         {/* Buttons Row */}
-        <div className="mt-8 flex items-center justify-end gap-3 pt-5 border-t border-[#232a35]">
+        <div className="mt-8 flex items-center justify-end gap-3 pt-5 border-t border-[#2c2d30]">
           {onCancel ? (
             <button
               type="button"
               onClick={onCancel}
               disabled={updateMutation.isPending}
-              className="rounded-xl border border-[#2c3440] bg-[#1a1f26] px-5 py-2.5 text-sm font-semibold text-[#ccd5df] hover:bg-[#252c36] hover:text-white transition cursor-pointer"
+              className="rounded-xl border border-[#2c2d30] bg-[#161718] px-5 py-2.5 text-sm font-semibold text-[#ccd5df] hover:bg-[#202224] hover:text-white transition cursor-pointer"
             >
               Cancel
             </button>
           ) : (
             <Link
               href={`/u/${profile.username}`}
-              className="rounded-xl border border-[#2c3440] bg-[#1a1f26] px-5 py-2.5 text-sm font-semibold text-[#ccd5df] hover:bg-[#252c36] hover:text-white transition"
+              className="rounded-xl border border-[#2c2d30] bg-[#161718] px-5 py-2.5 text-sm font-semibold text-[#ccd5df] hover:bg-[#202224] hover:text-white transition"
             >
               Cancel
             </Link>
@@ -389,10 +411,14 @@ function EditProfileFields({
 
           <button
             type="submit"
-            disabled={updateMutation.isPending}
+            disabled={updateMutation.isPending || isUploadingPhoto}
             className="rounded-xl bg-[#00e054] px-7 py-2.5 text-sm font-bold text-black hover:bg-[#00c549] transition disabled:opacity-50 cursor-pointer shadow-sm"
           >
-            {updateMutation.isPending ? "Saving changes…" : "Save changes"}
+            {isUploadingPhoto
+              ? "Uploading photo…"
+              : updateMutation.isPending
+                ? "Saving changes…"
+                : "Save changes"}
           </button>
         </div>
       </form>
@@ -420,16 +446,16 @@ export function EditProfileForm(props: EditProfileFormProps) {
   if (userQuery.isPending || profileQuery.isPending) {
     return (
       <div className="mx-auto max-w-2xl animate-pulse space-y-6 p-6">
-        <div className="h-8 w-44 rounded-xl bg-[#1a1f28]" />
-        <div className="h-28 rounded-2xl bg-[#1a1f28]" />
-        <div className="h-40 rounded-2xl bg-[#1a1f28]" />
+        <div className="h-8 w-44 rounded-xl bg-[#161718] border border-[#2c2d30]" />
+        <div className="h-28 rounded-2xl bg-[#161718] border border-[#2c2d30]" />
+        <div className="h-40 rounded-2xl bg-[#161718] border border-[#2c2d30]" />
       </div>
     );
   }
 
   if (!userQuery.data || !profileQuery.data) {
     return (
-      <div className="mx-auto max-w-md rounded-2xl border border-[#242b35] bg-[#14181f] p-8 text-center text-white">
+      <div className="mx-auto max-w-md rounded-2xl border border-[#2c2d30] bg-[#161718] p-8 text-center text-white">
         <h2 className="text-xl font-bold">Sign In Required</h2>
         <p className="mt-2 text-sm text-[#8fa0b5]">Please sign in to edit your profile.</p>
         <Link

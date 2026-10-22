@@ -2,16 +2,16 @@ import { z } from "zod";
 import { apiRequest } from "@/lib/api/client";
 
 const bookSchema = z.object({
-  id: z.string(),
+  id: z.string().uuid(),
   open_library_key: z.string(),
-  isbn13: z.string().optional().nullable(),
+  isbn13: z.string().optional(),
   title: z.string(),
-  subtitle: z.string().optional().nullable(),
+  subtitle: z.string().optional(),
   authors: z.array(z.string()),
-  cover_url: z.string().optional().nullable(),
-  published_year: z.number().int().optional().nullable(),
-  description: z.string().optional().nullable(),
-  open_library_url: z.string().optional().nullable(),
+  cover_url: z.url().optional(),
+  published_year: z.number().int().optional(),
+  description: z.string().optional(),
+  open_library_url: z.url(),
   metadata_synced_at: z.string(),
   created_at: z.string(),
   updated_at: z.string(),

@@ -5,23 +5,23 @@ export const readStatuses = ["want_to_read", "reading", "read", "did_not_finish"
 export type ReadStatus = (typeof readStatuses)[number];
 
 const bookSummarySchema = z.object({
-  id: z.string(),
-  open_library_key: z.string().optional().nullable(),
+  id: z.string().uuid(),
+  open_library_key: z.string().optional(),
   title: z.string(),
   authors: z.array(z.string()),
-  cover_url: z.string().optional().nullable(),
-  published_year: z.number().int().optional().nullable(),
-  open_library_url: z.string().optional().nullable(),
+  cover_url: z.url().optional(),
+  published_year: z.number().int().optional(),
+  open_library_url: z.url().optional(),
 });
 
 const readEntrySchema = z.object({
-  id: z.string(),
-  book_id: z.string(),
+  id: z.string().uuid(),
+  book_id: z.string().uuid(),
   status: z.enum(readStatuses),
-  rating: z.number().min(0.5).max(5).optional().nullable(),
-  started_at: z.string().optional().nullable(),
-  finished_at: z.string().optional().nullable(),
-  notes: z.string().optional().nullable(),
+  rating: z.number().min(0.5).max(5).optional(),
+  started_at: z.string().optional(),
+  finished_at: z.string().optional(),
+  notes: z.string().optional(),
   book: bookSummarySchema,
   created_at: z.string(),
   updated_at: z.string(),

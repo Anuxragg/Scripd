@@ -1,14 +1,19 @@
-import { AuthPage } from "@/features/auth/AuthPage";
+import { AuthLayout } from "@/features/auth/AuthLayout";
 import { LoginForm } from "@/features/auth/AuthForms";
+
+export const metadata = {
+  title: "Login — Scripd",
+  description: "Sign in to your Scripd reading profile and shelves.",
+};
 
 export default function LoginPage() {
   return (
-    <AuthPage
-      eyebrow="Welcome back"
-      title="Find your place in the story."
-      description="Pick up where your reading life left off. Your shelves, notes, and favorite readers are waiting."
+    <AuthLayout
+      footerText="Don't have an account?"
+      footerLinkText="Sign Up"
+      footerLinkHref="/signup"
     >
       <LoginForm />
-    </AuthPage>
+    </AuthLayout>
   );
 }

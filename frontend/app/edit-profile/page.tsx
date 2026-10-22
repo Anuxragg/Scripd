@@ -9,7 +9,7 @@ export const metadata: Metadata = {
 
 export default function EditProfilePage() {
   return (
-    <div className="min-h-screen bg-[#0d0f12] text-[#e0e6ed]">
+    <div className="min-h-screen bg-[#161718] text-[#e0e6ed]">
       <SiteHeader theme="dark" />
       <main className="mx-auto max-w-3xl px-4 py-10 sm:px-6">
         <EditProfileForm />

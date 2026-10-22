@@ -79,3 +79,42 @@ body {
 .text-link:hover {
   text-decoration: underline;
 }
+
+@keyframes marqueeUp {
+  0% {
+    transform: translateY(0);
+  }
+  100% {
+    transform: translateY(-50%);
+  }
+}
+
+@keyframes marqueeDown {
+  0% {
+    transform: translateY(-50%);
+  }
+  100% {
+    transform: translateY(0);
+  }
+}
+
+.animate-marquee-up-1 {
+  animation: marqueeUp 50s linear infinite;
+}
+
+.animate-marquee-down-2 {
+  animation: marqueeDown 45s linear infinite;
+}
+
+.animate-marquee-up-3 {
+  animation: marqueeUp 52s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-marquee-up-1,
+  .animate-marquee-down-2,
+  .animate-marquee-up-3 {
+    animation: none;
+  }
+}
+

@@ -26,7 +26,10 @@ const reviewResponseSchema = z.object({
 });
 
 const reviewListResponseSchema = z.object({
-  data: z.array(reviewSchema).nullish().transform((val) => val ?? []),
+  data: z
+    .array(reviewSchema)
+    .nullish()
+    .transform((val) => val ?? []),
   meta: z.object({
     next_cursor: z.string().nullable().optional(),
     has_more: z.boolean(),

@@ -18,7 +18,10 @@ const bookSchema = z.object({
 });
 
 const searchResponseSchema = z.object({
-  data: z.array(bookSchema).nullish().transform((val) => val ?? []),
+  data: z
+    .array(bookSchema)
+    .nullish()
+    .transform((val) => val ?? []),
   meta: z.object({
     page: z.number().int(),
     limit: z.number().int(),

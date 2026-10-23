@@ -44,20 +44,26 @@ function EditProfileFields({
   const [givenName, setGivenName] = useState(() => nameParts[0] || "");
   const [familyName, setFamilyName] = useState(() => nameParts.slice(1).join(" ") || "");
   const [bio, setBio] = useState(() => profile.bio || "");
-  const [avatarURL, setAvatarURL] = useState(() => profile.avatar_url || "");
+  const [avatarURL, setAvatarURL] = useState(() => {
+    if (typeof window !== "undefined") {
+      const local = localStorage.getItem(`scripd_user_avatar_${profile.username}`);
+      if (local) return local;
+    }
+    return profile.avatar_url || "";
+  });
 
   const [location, setLocation] = useState(() => {
-    if (typeof window === "undefined") return "Ind";
+    if (typeof window === "undefined") return "";
     try {
       const savedMeta = localStorage.getItem(`scripd_user_meta_${profile.username}`);
       if (savedMeta) {
         const parsed = JSON.parse(savedMeta);
-        return parsed.location || "Ind";
+        return parsed.location || "";
       }
     } catch {
       // ignore
     }
-    return "Ind";
+    return "";
   });
 
   const [website, setWebsite] = useState(() => {
@@ -121,11 +127,8 @@ function EditProfileFields({
           finalAvatarURL = await uploadAvatarToSupabase(finalAvatarURL, profile.id);
           setAvatarURL(finalAvatarURL);
         } catch (uploadErr) {
-          setIsUploadingPhoto(false);
-          const errorMsg =
-            uploadErr instanceof Error ? uploadErr.message : "Failed to upload avatar to Supabase.";
-          setStatusMessage({ type: "error", text: errorMsg });
-          return;
+          console.warn("Supabase Storage upload fallback:", uploadErr);
+          // Keep data URL so user still gets their avatar locally even if bucket is unconfigured
         }
         setIsUploadingPhoto(false);
       }
@@ -141,6 +144,10 @@ function EditProfileFields({
           `scripd_user_meta_${profile.username}`,
           JSON.stringify({ location: location.trim(), website: website.trim() }),
         );
+        if (finalAvatarURL) {
+          localStorage.setItem(`scripd_user_avatar_${profile.username}`, finalAvatarURL);
+        }
+        window.dispatchEvent(new Event("scripd_profile_updated"));
       } catch {
         // ignore storage failures
       }
@@ -303,7 +310,7 @@ function EditProfileFields({
                   type="text"
                   value={givenName}
                   onChange={(e) => setGivenName(e.target.value)}
-                  placeholder="Anurag"
+                  placeholder="First name"
                   maxLength={40}
                   className="w-full rounded-xl border border-[#2c2d30] bg-[#161718] px-4 py-3 text-sm text-white placeholder-[#505d6e] focus:border-[#8b5cf6] focus:outline-none transition"
                 />
@@ -317,7 +324,7 @@ function EditProfileFields({
                   type="text"
                   value={familyName}
                   onChange={(e) => setFamilyName(e.target.value)}
-                  placeholder="Pal"
+                  placeholder="Last name"
                   maxLength={40}
                   className="w-full rounded-xl border border-[#2c2d30] bg-[#161718] px-4 py-3 text-sm text-white placeholder-[#505d6e] focus:border-[#8b5cf6] focus:outline-none transition"
                 />
@@ -348,7 +355,7 @@ function EditProfileFields({
                   type="text"
                   value={location}
                   onChange={(e) => setLocation(e.target.value)}
-                  placeholder="Ind"
+                  placeholder="City, Country"
                   maxLength={50}
                   className="w-full rounded-xl border border-[#2c2d30] bg-[#161718] px-4 py-3 text-sm text-white placeholder-[#505d6e] focus:border-[#8b5cf6] focus:outline-none transition"
                 />

@@ -161,7 +161,11 @@ func (h *Handler) ListByBook(w http.ResponseWriter, r *http.Request) {
 		meta["next_cursor"] = *page.NextCursor
 	}
 
-	response.WriteJSONWithMeta(w, http.StatusOK, page.Reviews, meta)
+	reviews := page.Reviews
+	if reviews == nil {
+		reviews = []review.Review{}
+	}
+	response.WriteJSONWithMeta(w, http.StatusOK, reviews, meta)
 }
 
 func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {

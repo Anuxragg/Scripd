@@ -67,7 +67,11 @@ func (h *Handler) GetTimeline(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	response.WriteJSONWithMeta(w, http.StatusOK, page.Items, map[string]any{
+	items := page.Items
+	if items == nil {
+		items = []feed.Item{}
+	}
+	response.WriteJSONWithMeta(w, http.StatusOK, items, map[string]any{
 		"next_cursor": page.NextCursor,
 		"has_more":    page.HasMore,
 	})

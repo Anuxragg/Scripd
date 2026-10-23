@@ -32,7 +32,7 @@ export async function sendSupabaseOtp(email: string): Promise<void> {
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      email: email.trim(),
+      email: email.trim().toLowerCase(),
       create_user: true,
     }),
   });
@@ -62,42 +62,57 @@ export interface VerifyOtpResult {
 /**
  * Verifies the 6-digit OTP code with Supabase Auth and returns the authenticated session.
  */
-export async function verifySupabaseOtp(email: string, token: string): Promise<VerifyOtpResult> {
+export async function verifySupabaseOtp(
+  email: string,
+  token: string,
+  preferredType: "email" | "signup" = "email",
+): Promise<VerifyOtpResult> {
   const { url, anonKey } = getSupabaseConfig();
+  const cleanEmail = email.trim().toLowerCase();
+  const cleanToken = token.trim().replace(/\s/g, "");
 
-  const response = await fetch(`${url}/auth/v1/verify`, {
-    method: "POST",
-    headers: {
-      apikey: anonKey,
-      Authorization: `Bearer ${anonKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      type: "email",
-      email: email.trim(),
-      token: token.trim(),
-    }),
-  });
+  const typesToTry: ("email" | "signup")[] =
+    preferredType === "signup" ? ["signup", "email"] : ["email", "signup"];
 
-  if (!response.ok) {
+  let lastError = "Invalid or expired verification code.";
+
+  for (const type of typesToTry) {
+    const response = await fetch(`${url}/auth/v1/verify`, {
+      method: "POST",
+      headers: {
+        apikey: anonKey,
+        Authorization: `Bearer ${anonKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        type,
+        email: cleanEmail,
+        token: cleanToken,
+      }),
+    });
+
+    if (response.ok) {
+      const data = await response.json();
+      return {
+        accessToken: data.access_token,
+        refreshToken: data.refresh_token,
+        user: {
+          id: data.user?.id,
+          email: data.user?.email,
+        },
+      };
+    }
+
     const errorBody = await response.text();
-    let message = "Invalid or expired verification code.";
+    console.error(`[Supabase verify error (type="${type}")]:`, response.status, errorBody);
     try {
       const parsed = JSON.parse(errorBody);
-      message = parsed.msg || parsed.message || parsed.error_description || parsed.error || message;
+      lastError =
+        parsed.msg || parsed.message || parsed.error_description || parsed.error || lastError;
     } catch {
       // ignore parse error
     }
-    throw new Error(message);
   }
 
-  const data = await response.json();
-  return {
-    accessToken: data.access_token,
-    refreshToken: data.refresh_token,
-    user: {
-      id: data.user?.id,
-      email: data.user?.email,
-    },
-  };
+  throw new Error(lastError);
 }

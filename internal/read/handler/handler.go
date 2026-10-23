@@ -104,7 +104,11 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 		h.writeFailure(w, r, err)
 		return
 	}
-	response.WriteJSONWithMeta(w, http.StatusOK, page.Entries, map[string]any{
+	entries := page.Entries
+	if entries == nil {
+		entries = []read.Entry{}
+	}
+	response.WriteJSONWithMeta(w, http.StatusOK, entries, map[string]any{
 		"next_cursor": page.NextCursor, "has_more": page.HasMore,
 	})
 }

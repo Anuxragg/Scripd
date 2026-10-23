@@ -164,17 +164,21 @@ func normalizeDocument(document searchDocument, raw json.RawMessage) (book.Impor
 		value := *document.FirstPublishYear
 		publishedYear = &value
 	}
-	var coverURL *string
-	if document.CoverID != nil && *document.CoverID > 0 {
-		value := fmt.Sprintf("https://covers.openlibrary.org/b/id/%d-M.jpg?default=false", *document.CoverID)
-		coverURL = &value
-	}
 	var isbn13 *string
 	for _, isbn := range document.ISBNs {
 		if normalized := normalizeISBN13(isbn); normalized != "" {
 			isbn13 = &normalized
 			break
 		}
+	}
+
+	var coverURL *string
+	if document.CoverID != nil && *document.CoverID > 0 {
+		value := fmt.Sprintf("https://covers.openlibrary.org/b/id/%d-M.jpg?default=false", *document.CoverID)
+		coverURL = &value
+	} else if isbn13 != nil && *isbn13 != "" {
+		value := fmt.Sprintf("https://covers.openlibrary.org/b/isbn/%s-M.jpg?default=false", *isbn13)
+		coverURL = &value
 	}
 
 	return book.ImportedBook{

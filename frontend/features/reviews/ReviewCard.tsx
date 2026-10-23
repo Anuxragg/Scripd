@@ -38,7 +38,7 @@ export function ReviewCard({ review, currentUserID, onDelete }: ReviewCardProps)
 
   async function handleToggleLike() {
     if (!currentUserID) {
-      window.location.href = `/login?redirect=${encodeURIComponent(window.location.pathname)}`;
+      window.location.assign(`/login?redirect=${encodeURIComponent(window.location.pathname)}`);
       return;
     }
     if (isLiked) {

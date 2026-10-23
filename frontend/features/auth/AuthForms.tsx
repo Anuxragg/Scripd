@@ -16,21 +16,6 @@ const loginSchema = z.object({
 
 type LoginValues = z.infer<typeof loginSchema>;
 
-const registerSchema = z.object({
-  username: z
-    .string()
-    .trim()
-    .toLowerCase()
-    .regex(/^[a-z0-9_]{3,30}$/, "Use 3–30 letters, numbers, or underscores"),
-  email: z.string().email("Enter a valid email address").max(254),
-  password: z
-    .string()
-    .min(12, "Use at least 12 characters")
-    .max(128, "Use 128 characters or fewer"),
-});
-
-type RegisterValues = z.infer<typeof registerSchema>;
-
 /**
  * 6-box OTP input with auto-advance, backspace navigation, and paste support.
  */
@@ -132,7 +117,8 @@ export function LoginForm() {
         identifier: values.identifier.trim(),
         password: values.password,
       });
-      window.location.href = "/";
+      router.push("/");
+      router.refresh();
     } catch (error) {
       if (error instanceof ApiError) {
         if (error.code === "invalid_credentials") {
@@ -398,7 +384,8 @@ export function RegisterForm() {
       }
 
       setIsLoading(false);
-      window.location.href = "/";
+      router.push("/");
+      router.refresh();
     } catch (err) {
       isVerifyingRef.current = false;
       setIsLoading(false);

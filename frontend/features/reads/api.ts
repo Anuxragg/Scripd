@@ -28,7 +28,7 @@ const readEntrySchema = z.object({
 });
 
 const listResponseSchema = z.object({
-  data: z.array(readEntrySchema),
+  data: z.array(readEntrySchema).nullish().transform((val) => val ?? []),
   meta: z.object({
     next_cursor: z.string().nullable(),
     has_more: z.boolean(),

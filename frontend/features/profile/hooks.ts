@@ -72,13 +72,19 @@ export function useUpdateProfile(username?: string) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (input: UpdateProfileInput) => updateProfile(input),
-    onSuccess: () => {
+    onSuccess: (updatedProfile) => {
       queryClient.invalidateQueries({ queryKey: ["users"] });
-      queryClient.invalidateQueries({ queryKey: ["auth", "currentUser"] });
+      queryClient.invalidateQueries({ queryKey: ["auth", "current-user"] });
       if (username) {
         queryClient.invalidateQueries({
           queryKey: ["users", "profile", username.toLowerCase()],
         });
+      }
+      if (updatedProfile?.username) {
+        queryClient.setQueryData(
+          ["users", "profile", updatedProfile.username.toLowerCase()],
+          updatedProfile,
+        );
       }
     },
   });

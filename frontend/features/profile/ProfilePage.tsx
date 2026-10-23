@@ -28,17 +28,17 @@ export function ProfilePage({ username }: { username: string }) {
   const [isQRModalOpen, setIsQRModalOpen] = useState(false);
   const [linkCopied, setLinkCopied] = useState(false);
   const [userLocation] = useState(() => {
-    if (typeof window === "undefined") return "Ind";
+    if (typeof window === "undefined") return "";
     try {
       const savedMeta = localStorage.getItem(`scripd_user_meta_${username}`);
       if (savedMeta) {
         const parsed = JSON.parse(savedMeta);
-        return parsed.location || "Ind";
+        return parsed.location || "";
       }
     } catch {
       // ignore
     }
-    return "Ind";
+    return "";
   });
 
   const [userWebsite] = useState(() => {
@@ -58,6 +58,12 @@ export function ProfilePage({ username }: { username: string }) {
   const currentUserID = userQuery.data?.id;
   const profile = profileQuery.data;
   const isOwner = Boolean(currentUserID && profile && currentUserID === profile.id);
+  const avatarUrl =
+    profile?.avatar_url ||
+    (typeof window !== "undefined" && username
+      ? localStorage.getItem(`scripd_user_avatar_${username}`)
+      : "") ||
+    "";
 
   const [activeTab, setActiveTab] = useState<TabKey>("profile");
 
@@ -152,14 +158,25 @@ export function ProfilePage({ username }: { username: string }) {
   const followersCount = followStatusQuery.data?.followers_count ?? 0;
   const followingCount = followStatusQuery.data?.following_count ?? 0;
 
+  const joinedDate = (() => {
+    if (!profile.created_at) return null;
+    try {
+      const d = new Date(profile.created_at);
+      if (isNaN(d.getTime())) return null;
+      return new Intl.DateTimeFormat("en-US", { month: "long", year: "numeric" }).format(d);
+    } catch {
+      return null;
+    }
+  })();
+
   return (
     <main className="min-h-screen bg-[#121417] text-[#e0e6ed] pb-24 pt-6">
       <div className="mx-auto max-w-4xl px-4 sm:px-6">
-        {/* User Identity Header Card (Screenshot 1 Layout) */}
+        {/* User Identity Header Card */}
         <section className="relative">
           <div className="flex items-start justify-between gap-6">
-            {/* Left Column: Name, Handle, Bio, Follow Stats */}
-            <div className="flex-1">
+            {/* Left Column: Name, Handle, Bio, Metadata, Stats, Action Buttons */}
+            <div className="flex-1 min-w-0">
               <h1
                 style={{
                   fontFamily:
@@ -172,32 +189,80 @@ export function ProfilePage({ username }: { username: string }) {
               >
                 {profile.display_name || profile.username}
               </h1>
-              <div className="mt-1 flex flex-wrap items-center gap-2 text-sm text-[#89a]">
-                <span className="text-[#aab]">@{profile.username}</span>
-                <span>·</span>
-                <span className="flex items-center gap-1 text-[#89a]">
-                  📍 {userLocation || "Ind"}
-                </span>
-                {userWebsite && (
-                  <>
-                    <span>·</span>
+
+              {/* Handle */}
+              <p className="mt-0.5 text-sm text-[#89a]">@{profile.username}</p>
+
+              {/* Bio */}
+              {profile.bio && (
+                <p className="mt-2.5 text-sm text-[#ccd5df] leading-relaxed max-w-xl whitespace-pre-line">
+                  {profile.bio}
+                </p>
+              )}
+
+              {/* Metadata Row Below Bio: Location, Website, Joined Date */}
+              {(userLocation || userWebsite || joinedDate) && (
+                <div className="mt-2.5 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs sm:text-sm text-[#89a]">
+                  {userLocation && (
+                    <span className="flex items-center gap-1.5">
+                      <svg
+                        className="h-3.5 w-3.5 shrink-0 text-[#89a]"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      >
+                        <path d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0" />
+                        <circle cx="12" cy="10" r="3" />
+                      </svg>
+                      <span>{userLocation}</span>
+                    </span>
+                  )}
+                  {userWebsite && (
                     <a
                       href={userWebsite.startsWith("http") ? userWebsite : `https://${userWebsite}`}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-[#40bcf4] hover:underline"
+                      className="flex items-center gap-1.5 text-[#40bcf4] hover:underline"
                     >
-                      {userWebsite.replace(/^https?:\/\//, "")}
+                      <svg
+                        className="h-3.5 w-3.5 shrink-0"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      >
+                        <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+                        <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+                      </svg>
+                      <span>{userWebsite.replace(/^https?:\/\//, "")}</span>
                     </a>
-                  </>
-                )}
-              </div>
-
-              {/* Bio */}
-              <p className="mt-3 text-sm text-[#ccd5df] leading-relaxed max-w-xl whitespace-pre-line">
-                {profile.bio ||
-                  "Trying to build something but what to cuz I think those are already made"}
-              </p>
+                  )}
+                  {joinedDate && (
+                    <span className="flex items-center gap-1.5">
+                      <svg
+                        className="h-3.5 w-3.5 shrink-0 text-[#89a]"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      >
+                        <rect width="18" height="18" x="3" y="4" rx="2" />
+                        <path d="M3 10h18" />
+                        <path d="M8 2v4" />
+                        <path d="M16 2v4" />
+                      </svg>
+                      <span>Joined {joinedDate}</span>
+                    </span>
+                  )}
+                </div>
+              )}
 
               {/* Stats Counters (BOOKS, THIS YEAR, FOLLOWING, FOLLOWERS) */}
               <div className="mt-4 flex flex-wrap items-center gap-6 sm:gap-7">
@@ -247,7 +312,7 @@ export function ProfilePage({ username }: { username: string }) {
                 </div>
               </div>
 
-              {/* Action Buttons Row (Screenshot 1) */}
+              {/* Action Buttons Row */}
               <div className="mt-5 flex items-center gap-3">
                 {isOwner ? (
                   <Link
@@ -296,7 +361,7 @@ export function ProfilePage({ username }: { username: string }) {
                       {/* Backdrop to close when clicking outside */}
                       <div className="fixed inset-0 z-30" onClick={() => setIsMenuOpen(false)} />
 
-                      {/* Dropdown Menu matching user screenshot */}
+                      {/* Dropdown Menu */}
                       <div className="absolute left-0 mt-2 w-52 rounded-2xl border border-[#384556] bg-[#232c37] p-1.5 shadow-2xl z-40 animate-in fade-in zoom-in-95 duration-100">
                         <button
                           type="button"
@@ -352,11 +417,11 @@ export function ProfilePage({ username }: { username: string }) {
               </div>
             </div>
 
-            {/* Right Column: Large Round Avatar (Screenshot 1) */}
+            {/* Right Column: Large Round Avatar */}
             <div className="flex-shrink-0">
-              {profile.avatar_url ? (
+              {avatarUrl ? (
                 <Image
-                  src={profile.avatar_url}
+                  src={avatarUrl}
                   alt={profile.display_name}
                   width={110}
                   height={110}

@@ -66,7 +66,11 @@ func (h *Handler) Search(w http.ResponseWriter, r *http.Request) {
 	if result.Source == "local_catalog" {
 		h.log.Warn().Str("request_id", requestID(r)).Msg("Open Library unavailable; serving local book search results")
 	}
-	response.WriteJSONWithMeta(w, http.StatusOK, result.Books, map[string]any{
+	books := result.Books
+	if books == nil {
+		books = []book.Book{}
+	}
+	response.WriteJSONWithMeta(w, http.StatusOK, books, map[string]any{
 		"page": result.Page, "limit": result.Limit, "total": result.Total,
 		"has_more": result.HasMore, "source": result.Source,
 	})

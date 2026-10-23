@@ -36,7 +36,7 @@ export const feedItemSchema = z.object({
 });
 
 export const feedResponseSchema = z.object({
-  data: z.array(feedItemSchema),
+  data: z.array(feedItemSchema).nullish().transform((val) => val ?? []),
   meta: z.object({
     next_cursor: z.string().nullable().optional(),
     has_more: z.boolean(),

@@ -69,7 +69,7 @@ func (h *Handler) GetTimeline(w http.ResponseWriter, r *http.Request) {
 
 	items := page.Items
 	if items == nil {
-		items = []feed.Item{}
+		items = []feed.FeedItem{}
 	}
 	response.WriteJSONWithMeta(w, http.StatusOK, items, map[string]any{
 		"next_cursor": page.NextCursor,

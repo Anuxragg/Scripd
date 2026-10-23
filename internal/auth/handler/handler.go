@@ -319,12 +319,12 @@ func (h *Handler) setSessionCookies(w http.ResponseWriter, result service.Sessio
 	http.SetCookie(w, &http.Cookie{
 		Name: accessCookieName, Value: result.AccessToken, Path: "/", Expires: result.AccessExpiresAt,
 		MaxAge: cookieMaxAge(result.AccessExpiresAt), HttpOnly: true, Secure: h.secureCookies,
-		SameSite: http.SameSiteLaxMode,
+		SameSite: http.SameSiteStrictMode,
 	})
 	http.SetCookie(w, &http.Cookie{
 		Name: refreshCookieName, Value: result.RefreshToken, Path: refreshCookiePath, Expires: result.RefreshExpiresAt,
 		MaxAge: cookieMaxAge(result.RefreshExpiresAt), HttpOnly: true, Secure: h.secureCookies,
-		SameSite: http.SameSiteLaxMode,
+		SameSite: http.SameSiteStrictMode,
 	})
 }
 
@@ -339,7 +339,7 @@ func (h *Handler) clearSessionCookies(w http.ResponseWriter) {
 		cookie.MaxAge = -1
 		cookie.HttpOnly = true
 		cookie.Secure = h.secureCookies
-		cookie.SameSite = http.SameSiteLaxMode
+		cookie.SameSite = http.SameSiteStrictMode
 		http.SetCookie(w, cookie)
 	}
 }

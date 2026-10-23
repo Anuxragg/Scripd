@@ -278,8 +278,7 @@ export default function HomePage() {
   const userQuery = useCurrentUser();
   const profile = userQuery.data;
 
-  // Use profile display_name, username, or default to "Anurag" exactly as in screenshot
-  const displayName = profile?.display_name || profile?.username || "Anurag";
+  const displayName = profile?.display_name || profile?.username || "";
 
   return (
     <div className="min-h-screen bg-[#14181c] text-[#9ab] font-sans antialiased selection:bg-[#00e054] selection:text-[#14181c]">
@@ -288,22 +287,41 @@ export default function HomePage() {
 
       {/* Main Container */}
       <main className="mx-auto max-w-6xl px-4 sm:px-6 pb-20">
-        {/* Welcome Section - Identical to screenshot */}
+        {/* Welcome Section */}
         <section className="py-12 sm:py-16 text-center">
-          <h1 className="text-2xl sm:text-3xl font-light tracking-tight text-[#89a]">
-            Welcome back,{" "}
-            <span className="font-semibold text-white underline decoration-[#456] underline-offset-4">
-              {displayName}
-            </span>
-            . Here’s what we’ve been reading…
-          </h1>
-          <p className="mt-3 text-xs sm:text-sm text-[#678]">
-            This homepage will become customized as you{" "}
-            <Link href="/books" className="font-bold text-[#bcd] hover:text-white transition">
-              follow active members
-            </Link>{" "}
-            on Scripd.
-          </p>
+          {profile ? (
+            <>
+              <h1 className="text-2xl sm:text-3xl font-light tracking-tight text-[#89a]">
+                Welcome back,{" "}
+                <span className="font-semibold text-white underline decoration-[#456] underline-offset-4">
+                  {displayName}
+                </span>
+                . Here’s what we’ve been reading…
+              </h1>
+              <p className="mt-3 text-xs sm:text-sm text-[#678]">
+                This homepage will become customized as you{" "}
+                <Link href="/books" className="font-bold text-[#bcd] hover:text-white transition">
+                  follow active members
+                </Link>{" "}
+                on Scripd.
+              </p>
+            </>
+          ) : (
+            <>
+              <h1 className="text-2xl sm:text-3xl font-light tracking-tight text-white max-w-2xl mx-auto leading-snug">
+                Track books you’ve read. Save books you want to read. Tell your friends what’s good.
+              </h1>
+              <p className="mt-4 text-xs sm:text-sm text-[#89a]">
+                The social network for book lovers.{" "}
+                <Link
+                  href="/signup"
+                  className="font-bold text-[#00e054] hover:underline transition"
+                >
+                  Get started — it’s free!
+                </Link>
+              </p>
+            </>
+          )}
         </section>
 
         {/* SECTION 1: NEW ON SCRIPD (Poster Row) */}

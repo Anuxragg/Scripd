@@ -9,10 +9,12 @@ import { ApiError } from "@/lib/api/client";
 import { useLogin, useRegister } from "@/features/auth/hooks";
 import { sendSupabaseOtp, verifySupabaseOtp } from "@/lib/auth/supabaseAuth";
 
-const usernameLoginSchema = z.object({
-  username: z.string().trim().min(1, "Please enter your username"),
+const loginSchema = z.object({
+  identifier: z.string().trim().min(1, "Please enter your username or email"),
   password: z.string().min(1, "Please enter your password"),
 });
+
+type LoginValues = z.infer<typeof loginSchema>;
 
 const registerSchema = z.object({
   username: z
@@ -27,7 +29,6 @@ const registerSchema = z.object({
     .max(128, "Use 128 characters or fewer"),
 });
 
-type UsernameLoginValues = z.infer<typeof usernameLoginSchema>;
 type RegisterValues = z.infer<typeof registerSchema>;
 
 /**
@@ -116,43 +117,22 @@ function OtpInput({
 export function LoginForm() {
   const router = useRouter();
   const loginMutation = useLogin();
-
-  // Tab switch: Username (Password) vs Email (OTP)
-  const [activeTab, setActiveTab] = useState<"username" | "email">("username");
   const [showPassword, setShowPassword] = useState(false);
   const [submitError, setSubmitError] = useState("");
 
-  // Email OTP flow state
-  const [emailStep, setEmailStep] = useState<"email" | "otp">("email");
-  const [email, setEmail] = useState("");
-  const [otp, setOtp] = useState("");
-  const [isOtpLoading, setIsOtpLoading] = useState(false);
-  const [countdown, setCountdown] = useState(30);
-
-  // Form for Username + Password
-  const usernameForm = useForm<UsernameLoginValues>({
-    resolver: zodResolver(usernameLoginSchema),
-    defaultValues: { username: "", password: "" },
+  const form = useForm<LoginValues>({
+    resolver: zodResolver(loginSchema),
+    defaultValues: { identifier: "", password: "" },
   });
 
-  // Timer for resending code
-  useEffect(() => {
-    if (activeTab !== "email" || emailStep !== "otp" || countdown <= 0) return;
-    const timer = setInterval(() => {
-      setCountdown((prev) => prev - 1);
-    }, 1000);
-    return () => clearInterval(timer);
-  }, [activeTab, emailStep, countdown]);
-
-  async function onUsernameSubmit(values: UsernameLoginValues) {
+  async function onSubmit(values: LoginValues) {
     setSubmitError("");
     try {
       await loginMutation.mutateAsync({
-        identifier: values.username.trim(),
+        identifier: values.identifier.trim(),
         password: values.password,
       });
-      router.replace("/");
-      router.refresh();
+      window.location.href = "/";
     } catch (error) {
       if (error instanceof ApiError) {
         if (error.code === "invalid_credentials") {
@@ -166,305 +146,117 @@ export function LoginForm() {
     }
   }
 
-  async function handleSendOtp(e?: React.FormEvent) {
-    if (e) e.preventDefault();
-    setSubmitError("");
-
-    const trimmedEmail = email.trim();
-    if (!trimmedEmail) {
-      setSubmitError("Please enter your email address.");
-      return;
-    }
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(trimmedEmail)) {
-      setSubmitError("Please enter a valid email address.");
-      return;
-    }
-
-    setIsOtpLoading(true);
-    try {
-      await sendSupabaseOtp(trimmedEmail);
-      setIsOtpLoading(false);
-      setEmailStep("otp");
-      setCountdown(60);
-      setOtp("");
-    } catch (err) {
-      setIsOtpLoading(false);
-      const msg = err instanceof Error ? err.message : "Failed to send verification code.";
-      setSubmitError(msg);
-    }
-  }
-
-  async function handleVerifyOtp(codeToVerify?: string) {
-    const code = (codeToVerify || otp).replace(/\s/g, "");
-    setSubmitError("");
-
-    if (code.length < 6) {
-      setSubmitError("Please enter the full 6-digit verification code.");
-      return;
-    }
-
-    setIsOtpLoading(true);
-    try {
-      await verifySupabaseOtp(email.trim(), code);
-      setIsOtpLoading(false);
-      router.replace("/");
-      router.refresh();
-    } catch (err) {
-      setIsOtpLoading(false);
-      const msg = err instanceof Error ? err.message : "Invalid or expired verification code.";
-      setSubmitError(msg);
-    }
-  }
-
   return (
     <div className="w-full">
-      <h2 className="text-center text-2xl sm:text-[26px] font-bold text-gray-900 tracking-tight mb-5">
+      <h2 className="text-center text-2xl sm:text-[26px] font-bold text-gray-900 tracking-tight mb-6">
         Login
       </h2>
 
-      {/* Segmented Pill Tab: [ Username | Email ] */}
-      <div className="mb-5 flex rounded-xl bg-[#f2f4f7] p-1 text-sm font-medium">
-        <button
-          type="button"
-          onClick={() => {
-            setActiveTab("username");
-            setSubmitError("");
-          }}
-          className={`flex-1 rounded-lg py-2 text-center transition cursor-pointer ${
-            activeTab === "username"
-              ? "bg-white text-gray-900 shadow-sm font-semibold"
-              : "text-gray-500 hover:text-gray-900"
-          }`}
-        >
-          Username
-        </button>
-        <button
-          type="button"
-          onClick={() => {
-            setActiveTab("email");
-            setSubmitError("");
-          }}
-          className={`flex-1 rounded-lg py-2 text-center transition cursor-pointer ${
-            activeTab === "email"
-              ? "bg-white text-gray-900 shadow-sm font-semibold"
-              : "text-gray-500 hover:text-gray-900"
-          }`}
-        >
-          Email
-        </button>
-      </div>
-
-      {/* TAB 1: USERNAME + PASSWORD */}
-      {activeTab === "username" && (
-        <form
-          className="space-y-4"
-          onSubmit={usernameForm.handleSubmit(onUsernameSubmit)}
-          noValidate
-        >
-          <div>
-            <label className="block text-xs sm:text-[13px] font-semibold text-gray-800 mb-1.5">
-              Username
-            </label>
-            <input
-              {...usernameForm.register("username")}
-              type="text"
-              autoComplete="username"
-              placeholder="Enter your username"
-              className="w-full rounded-xl border border-gray-200 bg-white px-3.5 py-2.5 sm:py-3 text-sm text-gray-900 placeholder:text-gray-400 outline-none transition focus:border-purple-600 focus:ring-2 focus:ring-purple-600/15"
-              autoCapitalize="none"
-              autoCorrect="off"
-              spellCheck={false}
-            />
-            {usernameForm.formState.errors.username && (
-              <p className="mt-1 text-xs text-red-600 font-medium">
-                {usernameForm.formState.errors.username.message}
-              </p>
-            )}
-          </div>
-
-          <div>
-            <label className="block text-xs sm:text-[13px] font-semibold text-gray-800 mb-1.5">
-              Password
-            </label>
-            <div className="relative">
-              <input
-                {...usernameForm.register("password")}
-                type={showPassword ? "text" : "password"}
-                autoComplete="current-password"
-                placeholder="Enter your password"
-                className="w-full rounded-xl border border-gray-200 bg-white px-3.5 py-2.5 sm:py-3 pr-11 text-sm text-gray-900 placeholder:text-gray-400 outline-none transition focus:border-purple-600 focus:ring-2 focus:ring-purple-600/15"
-              />
-              <button
-                type="button"
-                onClick={() => setShowPassword((prev) => !prev)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 p-1 cursor-pointer"
-                aria-label={showPassword ? "Hide password" : "Show password"}
-              >
-                {showPassword ? (
-                  <svg
-                    className="h-4.5 w-4.5"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  >
-                    <path d="M9.88 9.88a3 3 0 1 0 4.24 4.24" />
-                    <path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68" />
-                    <path d="M6.61 6.61A13.526 13.526 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61" />
-                    <line x1="2" y1="2" x2="22" y2="22" />
-                  </svg>
-                ) : (
-                  <svg
-                    className="h-4.5 w-4.5"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  >
-                    <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" />
-                    <circle cx="12" cy="12" r="3" />
-                  </svg>
-                )}
-              </button>
-            </div>
-            {usernameForm.formState.errors.password && (
-              <p className="mt-1 text-xs text-red-600 font-medium">
-                {usernameForm.formState.errors.password.message}
-              </p>
-            )}
-          </div>
-
-          {submitError && (
-            <div className="rounded-xl bg-red-50 p-3 text-xs text-red-700 font-medium border border-red-200">
-              {submitError}
-            </div>
-          )}
-
-          <button
-            type="submit"
-            disabled={loginMutation.isPending}
-            className="mt-2 w-full rounded-xl bg-[#8b5cf6] hover:bg-[#7c3aed] text-white py-3 text-sm font-bold tracking-wide shadow-md shadow-purple-500/20 transition cursor-pointer disabled:opacity-60"
-          >
-            {loginMutation.isPending ? "Logging in…" : "Login"}
-          </button>
-
-          <div className="pt-2 text-center">
-            <a
-              href="#forgot-password"
-              onClick={(e) => {
-                e.preventDefault();
-                alert("Password reset instructions will be sent to your registered email.");
-              }}
-              className="text-xs text-gray-500 hover:text-gray-900 underline underline-offset-2 transition"
-            >
-              Forgot Password?
-            </a>
-          </div>
-        </form>
-      )}
-
-      {/* TAB 2: EMAIL ONLY (No password box, OTP flow) */}
-      {activeTab === "email" && (
+      <form className="space-y-4" onSubmit={form.handleSubmit(onSubmit)} noValidate>
         <div>
-          {emailStep === "email" ? (
-            <form className="space-y-4" onSubmit={handleSendOtp} noValidate>
-              <div>
-                <label className="block text-xs sm:text-[13px] font-semibold text-gray-800 mb-1.5">
-                  Email Address
-                </label>
-                <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="name@example.com"
-                  className="w-full rounded-xl border border-gray-200 bg-white px-3.5 py-2.5 sm:py-3 text-sm text-gray-900 placeholder:text-gray-400 outline-none transition focus:border-purple-600 focus:ring-2 focus:ring-purple-600/15"
-                  autoComplete="email"
-                  autoCapitalize="none"
-                  autoCorrect="off"
-                  spellCheck={false}
-                  required
-                />
-              </div>
-
-              {submitError && (
-                <div className="rounded-xl bg-red-50 p-3 text-xs text-red-700 font-medium border border-red-200">
-                  {submitError}
-                </div>
-              )}
-
-              <button
-                type="submit"
-                disabled={isOtpLoading}
-                className="mt-2 w-full rounded-xl bg-[#8b5cf6] hover:bg-[#7c3aed] text-white py-3 text-sm font-bold tracking-wide shadow-md shadow-purple-500/20 transition cursor-pointer disabled:opacity-60"
-              >
-                {isOtpLoading ? "Sending code…" : "Send Code"}
-              </button>
-            </form>
-          ) : (
-            <div className="space-y-4">
-              <div className="text-center">
-                <p className="text-xs text-gray-500">
-                  Enter the 6-digit code sent to <strong className="text-gray-800">{email}</strong>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setEmailStep("email");
-                      setSubmitError("");
-                    }}
-                    className="text-xs text-purple-600 hover:text-purple-700 font-semibold underline ml-1.5 cursor-pointer"
-                  >
-                    Change
-                  </button>
-                </p>
-              </div>
-
-              <div>
-                <OtpInput
-                  value={otp}
-                  onChange={setOtp}
-                  onComplete={(code) => handleVerifyOtp(code)}
-                />
-              </div>
-
-              {submitError && (
-                <div className="rounded-xl bg-red-50 p-3 text-xs text-red-700 font-medium border border-red-200 text-center">
-                  {submitError}
-                </div>
-              )}
-
-              <button
-                type="button"
-                onClick={() => handleVerifyOtp()}
-                disabled={isOtpLoading || otp.replace(/\s/g, "").length < 6}
-                className="w-full rounded-xl bg-[#8b5cf6] hover:bg-[#7c3aed] text-white py-3 text-sm font-bold tracking-wide shadow-md shadow-purple-500/20 transition cursor-pointer disabled:opacity-60"
-              >
-                {isOtpLoading ? "Verifying…" : "Verify & Log In"}
-              </button>
-
-              <div className="pt-2 text-center text-xs text-gray-500">
-                {countdown > 0 ? (
-                  <span>
-                    Resend code in <strong className="text-gray-700">{countdown}s</strong>
-                  </span>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={() => handleSendOtp()}
-                    className="font-semibold text-purple-600 hover:text-purple-700 underline underline-offset-2 cursor-pointer"
-                  >
-                    Didn’t receive the code? Resend
-                  </button>
-                )}
-              </div>
-            </div>
+          <label className="block text-xs sm:text-[13px] font-semibold text-gray-800 mb-1.5">
+            Username or Email
+          </label>
+          <input
+            {...form.register("identifier")}
+            type="text"
+            autoComplete="username"
+            placeholder="Enter your username or email"
+            className="w-full rounded-xl border border-gray-200 bg-white px-3.5 py-2.5 sm:py-3 text-sm text-gray-900 placeholder:text-gray-400 outline-none transition focus:border-purple-600 focus:ring-2 focus:ring-purple-600/15"
+            autoCapitalize="none"
+            autoCorrect="off"
+            spellCheck={false}
+          />
+          {form.formState.errors.identifier && (
+            <p className="mt-1 text-xs text-red-600 font-medium">
+              {form.formState.errors.identifier.message}
+            </p>
           )}
         </div>
-      )}
+
+        <div>
+          <label className="block text-xs sm:text-[13px] font-semibold text-gray-800 mb-1.5">
+            Password
+          </label>
+          <div className="relative">
+            <input
+              {...form.register("password")}
+              type={showPassword ? "text" : "password"}
+              autoComplete="current-password"
+              placeholder="Enter your password"
+              className="w-full rounded-xl border border-gray-200 bg-white px-3.5 py-2.5 sm:py-3 pr-11 text-sm text-gray-900 placeholder:text-gray-400 outline-none transition focus:border-purple-600 focus:ring-2 focus:ring-purple-600/15"
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword((prev) => !prev)}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 p-1 cursor-pointer"
+              aria-label={showPassword ? "Hide password" : "Show password"}
+            >
+              {showPassword ? (
+                <svg
+                  className="h-4.5 w-4.5"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path d="M9.88 9.88a3 3 0 1 0 4.24 4.24" />
+                  <path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68" />
+                  <path d="M6.61 6.61A13.526 13.526 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61" />
+                  <line x1="2" y1="2" x2="22" y2="22" />
+                </svg>
+              ) : (
+                <svg
+                  className="h-4.5 w-4.5"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" />
+                  <circle cx="12" cy="12" r="3" />
+                </svg>
+              )}
+            </button>
+          </div>
+          {form.formState.errors.password && (
+            <p className="mt-1 text-xs text-red-600 font-medium">
+              {form.formState.errors.password.message}
+            </p>
+          )}
+        </div>
+
+        {submitError && (
+          <div className="rounded-xl bg-red-50 p-3 text-xs text-red-700 font-medium border border-red-200">
+            {submitError}
+          </div>
+        )}
+
+        <button
+          type="submit"
+          disabled={loginMutation.isPending}
+          className="mt-2 w-full rounded-xl bg-[#8b5cf6] hover:bg-[#7c3aed] text-white py-3 text-sm font-bold tracking-wide shadow-md shadow-purple-500/20 transition cursor-pointer disabled:opacity-60"
+        >
+          {loginMutation.isPending ? "Logging in…" : "Login"}
+        </button>
+
+        <div className="pt-2 text-center">
+          <a
+            href="#forgot-password"
+            onClick={(e) => {
+              e.preventDefault();
+              alert("Password reset instructions will be sent to your registered email.");
+            }}
+            className="text-xs text-gray-500 hover:text-gray-900 underline underline-offset-2 transition"
+          >
+            Forgot Password?
+          </a>
+        </div>
+      </form>
     </div>
   );
 }
@@ -506,6 +298,7 @@ export function RegisterForm() {
   const [isLoading, setIsLoading] = useState(false);
   const [submitError, setSubmitError] = useState("");
   const [countdown, setCountdown] = useState(60);
+  const isVerifyingRef = useRef(false);
 
   const strength = getPasswordStrength(password);
 
@@ -546,11 +339,12 @@ export function RegisterForm() {
       setSubmitError("Please enter a valid email address.");
       return;
     }
-    if (password.length < 8) {
-      setSubmitError("Password must be at least 8 characters long.");
+    if (password.length < 12) {
+      setSubmitError("Password must be at least 12 characters long.");
       return;
     }
 
+    isVerifyingRef.current = false;
     setIsLoading(true);
     try {
       await sendSupabaseOtp(cleanEmail);
@@ -566,6 +360,8 @@ export function RegisterForm() {
   }
 
   async function handleVerifyOtpAndRegister(codeToVerify?: string) {
+    if (isVerifyingRef.current) return;
+
     const code = (codeToVerify || otp).replace(/\s/g, "");
     setSubmitError("");
 
@@ -574,6 +370,7 @@ export function RegisterForm() {
       return;
     }
 
+    isVerifyingRef.current = true;
     setIsLoading(true);
     try {
       await verifySupabaseOtp(email.trim(), code);
@@ -587,14 +384,23 @@ export function RegisterForm() {
           display_name: displayName || undefined,
           password: password,
         });
-      } catch {
-        // Backend register failure fallback
+      } catch (backendErr) {
+        isVerifyingRef.current = false;
+        setIsLoading(false);
+        const msg =
+          backendErr instanceof ApiError
+            ? backendErr.message
+            : backendErr instanceof Error
+              ? backendErr.message
+              : "Failed to create account in database.";
+        setSubmitError(msg);
+        return;
       }
 
       setIsLoading(false);
-      router.replace("/");
-      router.refresh();
+      window.location.href = "/";
     } catch (err) {
+      isVerifyingRef.current = false;
       setIsLoading(false);
       const msg = err instanceof Error ? err.message : "Invalid or expired verification code.";
       setSubmitError(msg);
@@ -816,6 +622,7 @@ export function RegisterForm() {
               <button
                 type="button"
                 onClick={() => {
+                  isVerifyingRef.current = false;
                   setStep(2);
                   setSubmitError("");
                 }}
@@ -841,7 +648,7 @@ export function RegisterForm() {
           )}
 
           <button
-            type="submit"
+            type="button"
             onClick={() => handleVerifyOtpAndRegister()}
             disabled={isLoading || otp.replace(/\s/g, "").length < 6}
             className="w-full rounded-xl bg-[#8b5cf6] hover:bg-[#7c3aed] text-white py-3 text-sm font-bold tracking-wide shadow-md shadow-purple-500/20 transition cursor-pointer disabled:opacity-60"

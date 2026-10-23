@@ -1,15 +1,27 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
 import { useCurrentUser, useLogout } from "@/features/auth/hooks";
+import { useProfile } from "@/features/profile/hooks";
 
 export function SiteHeader({ theme = "light" }: { theme?: "dark" | "light" }) {
   const userQuery = useCurrentUser();
   const logoutMutation = useLogout();
   const router = useRouter();
   const profile = userQuery.data;
+  const userProfileQuery = useProfile(profile?.username ?? "");
+  const [localAvatar, setLocalAvatar] = useState("");
+
+  // Sync avatar with local storage events so uploaded photos update immediately across tabs/header
+  if (typeof window !== "undefined" && !localAvatar && profile?.username) {
+    const cached = localStorage.getItem(`scripd_user_avatar_${profile.username}`);
+    if (cached) setLocalAvatar(cached);
+  }
+
+  const avatarUrl = userProfileQuery.data?.avatar_url || localAvatar || "";
 
   const [searchOpen, setSearchOpen] = useState(false);
   const [navSearch, setNavSearch] = useState("");
@@ -29,7 +41,7 @@ export function SiteHeader({ theme = "light" }: { theme?: "dark" | "light" }) {
 
     return (
       <header className="sticky top-0 z-50 w-full border-b border-[#2c3440] bg-[#14181c]/95 backdrop-blur-md">
-        <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-4 sm:px-6">
+        <div className="mx-auto flex h-14 max-w-4xl items-center justify-between px-4 sm:px-6">
           {/* Letterboxd-style 3-circle logo + Scripd Wordmark */}
           <Link
             href="/"
@@ -57,8 +69,21 @@ export function SiteHeader({ theme = "light" }: { theme?: "dark" | "light" }) {
                   className="flex items-center gap-2 rounded px-2 py-1 text-[#9ab] hover:text-white transition"
                   aria-expanded={userMenuOpen}
                 >
-                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#40bcf4] text-[10px] font-bold text-[#14181c]">
-                    {displayName.slice(0, 2).toUpperCase()}
+                  <span className="relative flex h-6 w-6 shrink-0 overflow-hidden rounded-full border border-[#2c3440] bg-[#1e242c]">
+                    {avatarUrl ? (
+                      <Image
+                        src={avatarUrl}
+                        alt={displayName}
+                        width={24}
+                        height={24}
+                        unoptimized
+                        className="h-full w-full object-cover"
+                      />
+                    ) : (
+                      <span className="flex h-full w-full items-center justify-center bg-[#242c34] text-[9px] font-bold text-[#9ab]">
+                        {displayName.slice(0, 2).toUpperCase()}
+                      </span>
+                    )}
                   </span>
                   <span className="hidden sm:inline font-bold tracking-wider">
                     {displayName.toUpperCase()}
@@ -67,9 +92,28 @@ export function SiteHeader({ theme = "light" }: { theme?: "dark" | "light" }) {
                 </button>
 
                 {userMenuOpen && (
-                  <div className="absolute right-0 mt-2 w-48 rounded border border-[#2c3440] bg-[#1b2228] py-2 text-xs font-medium normal-case shadow-2xl z-50">
-                    <div className="border-b border-[#2c3440] px-4 py-2 text-[#678] text-[11px]">
-                      Signed in as <strong className="text-white">@{profile.username}</strong>
+                  <div className="absolute right-0 mt-2 w-52 rounded-2xl border border-[#2c3440] bg-[#1b2228] py-2 text-xs font-medium normal-case shadow-2xl z-50">
+                    <div className="flex items-center gap-2.5 border-b border-[#2c3440] px-4 py-2 text-[#678] text-[11px]">
+                      <span className="relative flex h-7 w-7 shrink-0 overflow-hidden rounded-full border border-[#2c3440] bg-[#1e242c]">
+                        {avatarUrl ? (
+                          <Image
+                            src={avatarUrl}
+                            alt={displayName}
+                            width={28}
+                            height={28}
+                            unoptimized
+                            className="h-full w-full object-cover"
+                          />
+                        ) : (
+                          <span className="flex h-full w-full items-center justify-center bg-[#242c34] text-[10px] font-bold text-[#9ab]">
+                            {displayName.slice(0, 2).toUpperCase()}
+                          </span>
+                        )}
+                      </span>
+                      <div className="min-w-0 flex-1 truncate">
+                        <div className="font-semibold text-white truncate">{displayName}</div>
+                        <div className="text-[10px] text-[#89a] truncate">@{profile.username}</div>
+                      </div>
                     </div>
                     <Link
                       href="/feed"
@@ -259,8 +303,24 @@ export function SiteHeader({ theme = "light" }: { theme?: "dark" | "light" }) {
             >
               Library
             </Link>
-            <span className="hidden text-[var(--muted)] sm:inline">
-              Reading as @{profile.username}
+            <span className="hidden sm:inline-flex items-center gap-2 text-[var(--muted)]">
+              <span className="relative flex h-5 w-5 shrink-0 overflow-hidden rounded-full border border-gray-200 bg-gray-100">
+                {avatarUrl ? (
+                  <Image
+                    src={avatarUrl}
+                    alt={profile.username}
+                    width={20}
+                    height={20}
+                    unoptimized
+                    className="h-full w-full object-cover"
+                  />
+                ) : (
+                  <span className="flex h-full w-full items-center justify-center bg-[#40bcf4] text-[9px] font-bold text-white">
+                    {profile.username.slice(0, 2).toUpperCase()}
+                  </span>
+                )}
+              </span>
+              <span>Reading as @{profile.username}</span>
             </span>
             <button
               className="rounded-full border border-[var(--line)] px-4 py-2 font-medium hover:bg-white disabled:opacity-60"

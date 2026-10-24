@@ -13,11 +13,14 @@ export function useBookSearch(query: string, page: number, enabled: boolean) {
   });
 }
 
-export function useBook(bookID: string) {
+import type { Book } from "@/features/books/api";
+
+export function useBook(bookID: string, initialData?: Book | null) {
   return useQuery({
     queryKey: ["books", "detail", bookID],
     queryFn: () => getBook(bookID),
     enabled: Boolean(bookID),
+    initialData: initialData ?? undefined,
     staleTime: 5 * 60_000,
   });
 }

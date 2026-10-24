@@ -17,7 +17,7 @@ import (
 	"github.com/scripd-app/scripd/internal/platform/response"
 )
 
-const bookRequestTimeout = 10 * time.Second
+const bookRequestTimeout = 15 * time.Second
 
 type bookService interface {
 	Search(context.Context, string, int, int) (service.SearchPage, error)

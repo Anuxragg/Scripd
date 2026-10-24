@@ -37,7 +37,7 @@ type OpenLibrary struct {
 // NewOpenLibrary creates an OpenLibrary provider instance.
 func NewOpenLibrary(client *http.Client, endpoint string) *OpenLibrary {
 	if client == nil {
-		client = &http.Client{Timeout: 5 * time.Second}
+		client = &http.Client{Timeout: 12 * time.Second}
 	} else {
 		clientCopy := *client
 		client = &clientCopy
@@ -58,7 +58,7 @@ func (p *OpenLibrary) Search(ctx context.Context, query string, page, limit int)
 		return book.ProviderSearch{}, ctx.Err()
 	}
 
-	requestContext, cancel := context.WithTimeout(ctx, 4*time.Second)
+	requestContext, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
 
 	parsedURL, err := url.Parse(p.endpoint)
@@ -69,7 +69,7 @@ func (p *OpenLibrary) Search(ctx context.Context, query string, page, limit int)
 	parameters.Set("q", escapeSolrQuery(query))
 	parameters.Set("page", strconv.Itoa(page))
 	parameters.Set("limit", strconv.Itoa(limit))
-	parameters.Set("fields", "key,title,subtitle,author_name,first_publish_year,cover_i,isbn")
+	parameters.Set("fields", "key,title,author_name,first_publish_year,cover_i,isbn")
 	parsedURL.RawQuery = parameters.Encode()
 
 	request, err := http.NewRequestWithContext(requestContext, http.MethodGet, parsedURL.String(), nil)

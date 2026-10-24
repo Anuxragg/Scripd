@@ -4,9 +4,19 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
-import { ApiError } from "@/lib/api/client";
 import { BookCover } from "@/features/books/BookCover";
 import { useBookSearch } from "@/features/books/hooks";
+
+const FAMOUS_SUGGESTIONS = [
+  "1984",
+  "The Great Gatsby",
+  "Dune",
+  "Harry Potter",
+  "Pride and Prejudice",
+  "To Kill a Mockingbird",
+  "The Hobbit",
+  "Crime and Punishment",
+];
 
 export function BookSearchPage({
   initialQuery,
@@ -21,7 +31,7 @@ export function BookSearchPage({
   const [debouncedQuery, setDebouncedQuery] = useState(initialQuery.trim());
 
   useEffect(() => {
-    const timeout = window.setTimeout(() => setDebouncedQuery(query.trim()), 250);
+    const timeout = window.setTimeout(() => setDebouncedQuery(query.trim()), 300);
     return () => window.clearTimeout(timeout);
   }, [query]);
 
@@ -37,6 +47,12 @@ export function BookSearchPage({
     router.replace(queryString ? `/books?${queryString}` : "/books", { scroll: false });
   }
 
+  function handleSuggestionClick(suggestion: string) {
+    setQuery(suggestion);
+    setPage(1);
+    router.replace(`/books?q=${encodeURIComponent(suggestion)}`, { scroll: false });
+  }
+
   function changePage(nextPage: number) {
     setPage(nextPage);
     const params = new URLSearchParams({ q: debouncedQuery, page: String(nextPage) });
@@ -48,153 +64,184 @@ export function BookSearchPage({
   const hasSearch = debouncedQuery.length >= 2;
 
   return (
-    <main className="min-h-screen bg-[var(--background)]">
-      <div className="border-b border-[var(--line)] bg-[#f1efe8]">
-        <div className="mx-auto max-w-7xl px-5 pb-14 pt-3 sm:px-8 sm:pb-16">
-          <p className="eyebrow mt-8">The catalog</p>
-          <h1 className="display-title mt-4 text-5xl sm:text-6xl">Find your next read.</h1>
-          <p className="mt-4 max-w-2xl text-base leading-7 text-[var(--muted)]">
-            Search books by title or author, then keep the ones you love in your reading life.
+    <main className="min-h-screen bg-[#0a0c10] text-white selection:bg-[#9333ea]/30 selection:text-white pb-24">
+      {/* Search Header Banner */}
+      <div className="border-b border-white/5 bg-gradient-to-b from-[#121620] via-[#0d1017] to-[#0a0c10]">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 pb-12 pt-6 sm:pb-16 sm:pt-8">
+          <span className="text-[11px] font-bold uppercase tracking-widest text-zinc-500 block">
+            Open Library Catalog
+          </span>
+          <h1 className="mt-3 text-3xl sm:text-5xl font-extrabold tracking-tight text-white">
+            Find your next read.
+          </h1>
+          <p className="mt-3 max-w-2xl text-sm sm:text-base text-zinc-400 font-normal leading-relaxed">
+            Search millions of titles and authors from the worldwide catalog.
           </p>
-          <form className="mt-8 flex max-w-3xl flex-col gap-3 sm:flex-row" onSubmit={submitSearch}>
-            <label className="sr-only" htmlFor="book-search">
-              Search by title or author
-            </label>
-            <input
-              autoComplete="off"
-              className="min-h-14 min-w-0 flex-1 rounded-2xl border border-[var(--line)] bg-white px-5 text-base text-[var(--ink)] shadow-sm outline-none transition placeholder:text-[#8b8e87] focus:border-[var(--forest)] focus:ring-2 focus:ring-[var(--forest)]/15"
-              id="book-search"
-              maxLength={120}
-              minLength={2}
-              onChange={(event) => {
-                setQuery(event.target.value);
-                setPage(1);
-              }}
-              placeholder="Try a title or author"
-              type="search"
-              value={query}
-            />
+
+          {/* Search Form */}
+          <form className="mt-7 flex max-w-3xl flex-col gap-3 sm:flex-row" onSubmit={submitSearch}>
+            <div className="relative flex-1">
+              <input
+                autoComplete="off"
+                className="h-13 w-full rounded-2xl border border-white/10 bg-[#151922] px-5 text-sm sm:text-base text-white shadow-xl outline-none transition placeholder:text-zinc-500 focus:border-[#9333ea] focus:ring-2 focus:ring-[#9333ea]/20"
+                id="book-search"
+                maxLength={120}
+                minLength={2}
+                onChange={(event) => {
+                  setQuery(event.target.value);
+                  setPage(1);
+                }}
+                placeholder="Search by title, author, or keyword (e.g. 1984, Dune, Gatsby)..."
+                type="search"
+                value={query}
+              />
+            </div>
             <button
-              className="min-h-14 rounded-2xl bg-[var(--forest)] px-7 font-semibold text-white transition hover:bg-[var(--forest-dark)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--forest)]"
+              className="h-13 rounded-2xl bg-[#9333ea] px-8 font-semibold text-sm text-white transition hover:bg-[#822cd6] active:scale-95 shadow-lg shadow-purple-600/30 cursor-pointer"
               type="submit"
             >
-              Search books
+              Search
             </button>
           </form>
+
+          {/* Famous Books Quick Search Pills */}
+          <div className="mt-5 flex flex-wrap items-center gap-2 text-xs">
+            <span className="text-zinc-500 font-medium mr-1">Popular:</span>
+            {FAMOUS_SUGGESTIONS.map((suggestion) => (
+              <button
+                key={suggestion}
+                type="button"
+                onClick={() => handleSuggestionClick(suggestion)}
+                className="rounded-full border border-white/10 bg-[#161a24] px-3.5 py-1 text-xs text-zinc-400 hover:text-white hover:border-[#9333ea]/50 hover:bg-[#1d2230] transition cursor-pointer"
+              >
+                {suggestion}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
+      {/* Results Section */}
       <section
         aria-label="Book search results"
-        className="mx-auto max-w-7xl px-5 py-10 sm:px-8 sm:py-14"
+        className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8 sm:py-12"
       >
-        <div className="flex flex-wrap items-end justify-between gap-4">
+        <div className="flex flex-wrap items-end justify-between gap-4 border-b border-white/5 pb-4">
           <div>
-            <p className="eyebrow">A growing library</p>
-            <h2 className="mt-2 font-serif text-2xl text-[var(--ink)]">
-              {result ? `${result.meta.total.toLocaleString()} books found` : "Books to remember"}
+            <h2 className="text-xl sm:text-2xl font-bold text-white tracking-tight">
+              {result && result.meta.total > 0
+                ? `${result.meta.total.toLocaleString()} books found`
+                : hasSearch
+                ? `Results for "${debouncedQuery}"`
+                : "Explore Books"}
             </h2>
           </div>
-          {result?.meta.source === "local_catalog" ? (
-            <p className="max-w-md rounded-full border border-[#d9cba7] bg-[#f8f0dc] px-4 py-2 text-sm text-[#665630]">
-              Showing books already in Scripd while the live catalog reconnects.
+          {result?.meta.source === "local_catalog" && (
+            <p className="rounded-full border border-white/10 bg-[#151922] px-3 py-1 text-xs text-zinc-400">
+              Cached catalog results
             </p>
-          ) : null}
+          )}
         </div>
 
+        {/* Empty Query Prompt */}
         {!hasSearch ? (
-          <div className="mt-8 rounded-3xl border border-dashed border-[var(--line)] bg-white/60 px-6 py-14 text-center">
-            <p className="font-serif text-2xl text-[var(--ink)]">Every shelf starts somewhere.</p>
-            <p className="mx-auto mt-3 max-w-md leading-7 text-[var(--muted)]">
-              {query.trim().length === 1
-                ? "Enter at least two characters to search the catalog."
-                : "Search for a book or an author to find your next read."}
+          <div className="mt-12 rounded-3xl border border-dashed border-white/10 bg-[#12151c]/60 p-12 text-center max-w-xl mx-auto">
+            <span className="text-3xl block mb-3">📖</span>
+            <h3 className="text-lg font-bold text-white">Search any book in the world</h3>
+            <p className="mt-2 text-sm text-zinc-400 leading-relaxed">
+              Type any title, author, or keyword above to instantly search through millions of editions.
             </p>
           </div>
         ) : search.isPending ? (
+          /* Loading Pulse Grid */
           <div
             aria-label="Searching books"
-            aria-live="polite"
-            className="mt-8 grid grid-cols-2 gap-5 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6"
+            className="mt-8 grid grid-cols-2 gap-4 sm:grid-cols-3 sm:gap-6 md:grid-cols-4 lg:grid-cols-6"
           >
-            {Array.from({ length: 6 }, (_, index) => (
-              <div className="animate-pulse" key={index}>
-                <div className="aspect-[2/3] rounded-xl bg-[#e9e6df]" />
-                <div className="mt-4 h-4 w-4/5 rounded bg-[#e9e6df]" />
-                <div className="mt-2 h-3 w-2/3 rounded bg-[#e9e6df]" />
+            {Array.from({ length: 12 }, (_, index) => (
+              <div className="animate-pulse flex flex-col" key={index}>
+                <div className="aspect-[2/3] w-full rounded-xl bg-[#161a22] border border-white/5" />
+                <div className="mt-3 h-4 w-4/5 rounded bg-[#161a22]" />
+                <div className="mt-1.5 h-3 w-1/2 rounded bg-[#161a22]" />
               </div>
             ))}
           </div>
-        ) : search.isError ? (
-          <div className="mt-8 rounded-3xl border border-red-200 bg-red-50 px-6 py-8" role="alert">
-            <h3 className="font-semibold text-red-900">We couldn’t find books right now.</h3>
-            <p className="mt-2 text-sm leading-6 text-red-800">
-              {search.error instanceof ApiError && search.error.code === "catalog_unavailable"
-                ? "The catalog is temporarily unavailable. Please try again shortly."
-                : "Something interrupted the search. Try again in a moment."}
-            </p>
-            <button
-              className="mt-5 rounded-full border border-red-300 px-4 py-2 text-sm font-semibold text-red-900 hover:bg-red-100"
-              onClick={() => search.refetch()}
-              type="button"
-            >
-              Try again
-            </button>
-          </div>
         ) : result && result.data.length > 0 ? (
+          /* Search Results Grid */
           <>
-            <div
-              aria-busy={search.isFetching}
-              className="mt-8 grid grid-cols-2 gap-x-5 gap-y-9 sm:grid-cols-3 sm:gap-x-6 lg:grid-cols-4 xl:grid-cols-6"
-            >
+            <div className="mt-8 grid grid-cols-2 gap-4 sm:grid-cols-3 sm:gap-6 md:grid-cols-4 lg:grid-cols-6">
               {result.data.map((book) => (
-                <Link className="group min-w-0" href={`/books/${book.id}`} key={book.id}>
-                  <BookCover
-                    className="aspect-[2/3] transition duration-300 group-hover:-translate-y-1 group-hover:shadow-xl"
-                    coverURL={book.cover_url}
-                    title={book.title}
-                  />
-                  <h3 className="mt-4 line-clamp-2 font-serif text-lg leading-6 text-[var(--ink)] group-hover:text-[var(--forest)]">
+                <Link
+                  className="group flex flex-col min-w-0"
+                  href={`/books/${book.id}`}
+                  key={book.id}
+                  title={`${book.title} by ${book.authors.join(", ")}`}
+                >
+                  <div className="relative aspect-[2/3] w-full overflow-hidden rounded-xl border border-white/10 bg-[#151922] shadow-xl transition duration-200 group-hover:border-white/40 group-hover:scale-[1.02]">
+                    <BookCover
+                      className="h-full w-full object-cover"
+                      coverURL={book.cover_url}
+                      title={book.title}
+                    />
+                  </div>
+
+                  <h3 className="mt-3 line-clamp-2 text-sm font-bold text-white group-hover:text-[#c084fc] transition leading-snug">
                     {book.title}
                   </h3>
-                  <p className="mt-1 line-clamp-1 text-sm text-[var(--muted)]">
-                    {book.authors.length ? book.authors.join(", ") : "Author unknown"}
+
+                  <p className="mt-1 line-clamp-1 text-xs text-zinc-400">
+                    {book.authors.length ? book.authors.join(", ") : "Unknown Author"}
                   </p>
-                  {book.published_year ? (
-                    <p className="mt-1 text-xs text-[#858980]">{book.published_year}</p>
-                  ) : null}
+
+                  {book.published_year && (
+                    <span className="mt-1 text-[11px] text-zinc-500 font-mono">
+                      {book.published_year}
+                    </span>
+                  )}
                 </Link>
               ))}
             </div>
-            <nav
-              aria-label="Search result pages"
-              className="mt-12 flex items-center justify-center gap-5"
-            >
+
+            {/* Pagination Controls */}
+            <div className="mt-14 flex items-center justify-center gap-4">
               <button
-                className="rounded-full border border-[var(--line)] px-5 py-2.5 text-sm font-semibold text-[var(--ink)] hover:bg-white disabled:cursor-not-allowed disabled:opacity-40"
+                type="button"
+                className="rounded-full border border-white/10 bg-[#161a22] px-5 py-2 text-xs font-semibold text-white hover:bg-[#202533] disabled:opacity-40 disabled:cursor-not-allowed transition"
                 disabled={page <= 1 || search.isFetching}
                 onClick={() => changePage(page - 1)}
-                type="button"
               >
-                Previous
+                ← Previous
               </button>
-              <span className="text-sm text-[var(--muted)]">Page {page}</span>
+              <span className="text-xs text-zinc-400 font-medium">Page {page}</span>
               <button
-                className="rounded-full border border-[var(--line)] px-5 py-2.5 text-sm font-semibold text-[var(--ink)] hover:bg-white disabled:cursor-not-allowed disabled:opacity-40"
+                type="button"
+                className="rounded-full border border-white/10 bg-[#161a22] px-5 py-2 text-xs font-semibold text-white hover:bg-[#202533] disabled:opacity-40 disabled:cursor-not-allowed transition"
                 disabled={!result.meta.has_more || search.isFetching}
                 onClick={() => changePage(page + 1)}
-                type="button"
               >
-                Next
+                Next →
               </button>
-            </nav>
+            </div>
           </>
         ) : (
-          <div className="mt-8 rounded-3xl border border-[var(--line)] bg-white/70 px-6 py-14 text-center">
-            <p className="font-serif text-2xl text-[var(--ink)]">
-              No books found for “{debouncedQuery}”
+          /* No Results Found State */
+          <div className="mt-12 rounded-3xl border border-white/10 bg-[#12151c] p-10 text-center max-w-lg mx-auto shadow-2xl">
+            <h3 className="text-lg font-bold text-white">No exact match found</h3>
+            <p className="mt-2 text-xs sm:text-sm text-zinc-400">
+              Try searching with a shorter title, author last name, or try one of the popular titles below:
             </p>
-            <p className="mt-3 text-[var(--muted)]">Try a shorter title or another author name.</p>
+            <div className="mt-5 flex flex-wrap justify-center gap-2">
+              {FAMOUS_SUGGESTIONS.slice(0, 5).map((s) => (
+                <button
+                  key={s}
+                  type="button"
+                  onClick={() => handleSuggestionClick(s)}
+                  className="rounded-full border border-[#9333ea]/30 bg-[#9333ea]/10 px-3.5 py-1 text-xs text-[#c084fc] hover:bg-[#9333ea]/20 transition"
+                >
+                  {s}
+                </button>
+              ))}
+            </div>
           </div>
         )}
       </section>

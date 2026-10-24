@@ -13,7 +13,7 @@ export default async function BooksPage({
 
   return (
     <>
-      <SiteHeader />
+      <SiteHeader theme="dark" />
       <BookSearchPage key={`${query}:${page}`} initialQuery={query} initialPage={page} />
     </>
   );

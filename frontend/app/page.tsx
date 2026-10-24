@@ -116,6 +116,7 @@ const NEW_ON_SCRIPD: PosterItem[] = [
 const POPULAR_REVIEWS = [
   {
     id: "rev-1",
+    bookId: "secret-history",
     bookTitle: "The Secret History",
     author: "Donna Tartt",
     year: 1992,
@@ -137,6 +138,7 @@ const POPULAR_REVIEWS = [
   },
   {
     id: "rev-2",
+    bookId: "tomorrow-tomorrow",
     bookTitle: "Tomorrow, and Tomorrow, and Tomorrow",
     author: "Gabrielle Zevin",
     year: 2022,
@@ -158,6 +160,7 @@ const POPULAR_REVIEWS = [
   },
   {
     id: "rev-3",
+    bookId: "klara-and-the-sun",
     bookTitle: "Klara and the Sun",
     author: "Kazuo Ishiguro",
     year: 2021,
@@ -223,6 +226,7 @@ const POPULAR_LISTS = [
 
 const RECENT_DIARY = [
   {
+    id: "tomorrow-tomorrow",
     date: "16 Oct",
     title: "Tomorrow, and Tomorrow, and Tomorrow",
     year: 2022,
@@ -233,6 +237,7 @@ const RECENT_DIARY = [
     coverURL: "https://covers.openlibrary.org/b/id/12847926-M.jpg",
   },
   {
+    id: "secret-history",
     date: "14 Oct",
     title: "The Secret History",
     year: 1992,
@@ -243,6 +248,7 @@ const RECENT_DIARY = [
     coverURL: "https://covers.openlibrary.org/b/id/8231856-M.jpg",
   },
   {
+    id: "klara-and-the-sun",
     date: "11 Oct",
     title: "Klara and the Sun",
     year: 2021,
@@ -253,6 +259,7 @@ const RECENT_DIARY = [
     coverURL: "https://covers.openlibrary.org/b/id/10522964-M.jpg",
   },
   {
+    id: "pachinko",
     date: "08 Oct",
     title: "Pachinko",
     year: 2017,
@@ -263,6 +270,7 @@ const RECENT_DIARY = [
     coverURL: "https://covers.openlibrary.org/b/id/8315147-M.jpg",
   },
   {
+    id: "dune",
     date: "03 Oct",
     title: "Dune",
     year: 1965,
@@ -346,7 +354,7 @@ export default function HomePage() {
               <article key={item.id} className="group relative flex flex-col">
                 {/* Poster Cover */}
                 <Link
-                  href={`/books?q=${encodeURIComponent(item.title)}`}
+                  href={`/books/${item.id}`}
                   className="relative aspect-[2/3] w-full overflow-hidden rounded-[4px] border border-[#2c3440] bg-[#1e242c] shadow-[0_2px_8px_rgba(0,0,0,0.6)] transition duration-200 group-hover:border-white group-hover:brightness-105"
                   title={`${item.title} by ${item.author}`}
                 >
@@ -364,10 +372,10 @@ export default function HomePage() {
                 {/* Reviewer Name and Rating below poster */}
                 <div className="mt-2.5">
                   <Link
-                    href={`/books?q=${encodeURIComponent(item.title)}`}
+                    href={`/books/${item.id}`}
                     className="block truncate text-xs font-semibold text-[#9ab] transition hover:text-white"
                   >
-                    {item.reviewer.username}
+                    {item.title}
                   </Link>
                   <div className="mt-0.5 flex items-center gap-1 text-xs">
                     <span className="font-bold text-[#00e054] tracking-tighter">
@@ -414,7 +422,7 @@ export default function HomePage() {
                   {/* Top: Poster + Title Info */}
                   <div className="flex gap-3.5">
                     <Link
-                      href={`/books?q=${encodeURIComponent(rev.bookTitle)}`}
+                      href={`/books/${rev.bookId}`}
                       className="relative h-28 w-20 shrink-0 overflow-hidden rounded-[3px] border border-[#2c3440] bg-[#1a2027] shadow transition hover:border-white"
                     >
                       <PosterImage title={rev.bookTitle} coverURL={rev.coverURL} />
@@ -423,7 +431,7 @@ export default function HomePage() {
                     <div className="flex flex-col justify-between">
                       <div>
                         <Link
-                          href={`/books?q=${encodeURIComponent(rev.bookTitle)}`}
+                          href={`/books/${rev.bookId}`}
                           className="font-bold text-sm text-white hover:text-[#40bcf4] transition leading-snug line-clamp-2"
                         >
                           {rev.bookTitle}
@@ -592,7 +600,7 @@ export default function HomePage() {
                           />
                         </div>
                         <Link
-                          href={`/books?q=${encodeURIComponent(entry.title)}`}
+                          href={`/books/${entry.id}`}
                           className="font-bold text-white hover:text-[#40bcf4] transition"
                         >
                           {entry.title}

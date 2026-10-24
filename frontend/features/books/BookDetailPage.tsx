@@ -258,6 +258,19 @@ export function BookDetailPage({
     return `An acclaimed literary work by ${authorNames}. Cataloged in the Scripd library with full metadata, reader community reviews, and reading diary tracking.`;
   }, [apiBook, knownMatch, subtitle, title, authorNames]);
 
+  // Derive contextual genre and topic tags based on actual book content
+  const tags = useMemo(() => {
+    const list: string[] = ["Literature", "Book"];
+    const text = `${title} ${description} ${authorNames}`.toLowerCase();
+    if (text.includes("history") || text.includes("war") || text.includes("century")) list.push("History");
+    if (text.includes("murder") || text.includes("mystery") || text.includes("crime") || text.includes("detective")) list.push("Mystery");
+    if (text.includes("sci") || text.includes("space") || text.includes("planet") || text.includes("artificial")) list.push("Sci-Fi");
+    if (text.includes("classic") || text.includes("19") || text.includes("tragedy")) list.push("Classics");
+    if (text.includes("drama") || text.includes("love") || text.includes("friendship") || text.includes("family")) list.push("Drama");
+    if (text.includes("game") || text.includes("creative") || text.includes("college")) list.push("Contemporary");
+    return Array.from(new Set(list));
+  }, [title, description, authorNames]);
+
   // Loading skeleton while book metadata is fetching
   if (bookQuery.isLoading && !apiBook && !knownMatch) {
     return (
@@ -283,19 +296,6 @@ export function BookDetailPage({
       </main>
     );
   }
-
-  // Derive contextual genre and topic tags based on actual book content
-  const tags = useMemo(() => {
-    const list: string[] = ["Literature", "Book"];
-    const text = `${title} ${description} ${authorNames}`.toLowerCase();
-    if (text.includes("history") || text.includes("war") || text.includes("century")) list.push("History");
-    if (text.includes("murder") || text.includes("mystery") || text.includes("crime") || text.includes("detective")) list.push("Mystery");
-    if (text.includes("sci") || text.includes("space") || text.includes("planet") || text.includes("artificial")) list.push("Sci-Fi");
-    if (text.includes("classic") || text.includes("19") || text.includes("tragedy")) list.push("Classics");
-    if (text.includes("drama") || text.includes("love") || text.includes("friendship") || text.includes("family")) list.push("Drama");
-    if (text.includes("game") || text.includes("creative") || text.includes("college")) list.push("Contemporary");
-    return Array.from(new Set(list));
-  }, [title, description, authorNames]);
 
   const openLibraryKey = apiBook?.open_library_key || knownMatch?.openLibraryKey || "OL-CATALOG";
   const openLibraryUrl = apiBook?.open_library_url || knownMatch?.openLibraryUrl || "https://openlibrary.org";

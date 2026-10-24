@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useEffect, useState } from "react";
 
 // Curated high-res portraits for world-renowned authors for instant loading
@@ -118,12 +119,14 @@ export function AuthorAvatar({
       className={`relative h-20 w-20 sm:h-24 sm:w-24 rounded-full overflow-hidden border border-white/15 bg-gradient-to-tr from-[#161a24] to-[#252c3c] flex items-center justify-center shadow-md group-hover:border-[#9333ea]/60 transition shrink-0 ${className}`}
     >
       {photoUrl && !imgFailed ? (
-        <img
+        <Image
           src={photoUrl}
           alt={name}
+          fill
+          unoptimized
+          sizes="96px"
           onError={() => setImgFailed(true)}
-          className="h-full w-full object-cover object-top transition duration-300 group-hover:scale-105"
-          loading="lazy"
+          className="object-cover object-top transition duration-300 group-hover:scale-105"
         />
       ) : (
         <span className="font-bold text-lg sm:text-xl text-[#9ab] group-hover:text-white transition">

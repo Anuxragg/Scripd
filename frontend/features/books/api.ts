@@ -221,7 +221,7 @@ export async function searchBooks(query: string, page: number, limit = 12): Prom
     if (result.data && result.data.length > 0) {
       return result;
     }
-  } catch (backendError) {
+  } catch {
     // Backend search failed or timed out, will fall back gracefully
   }
 
@@ -278,7 +278,7 @@ export async function searchBooks(query: string, page: number, limit = 12): Prom
         };
       }
     }
-  } catch (olError) {
+  } catch {
     // Catch fetch/network errors gracefully without throwing to console
   }
 

@@ -157,9 +157,7 @@ export function BookDetailPage({
   );
   const activeEntry = entries.find(
     (entry) =>
-      entry.status === "want_to_read" ||
-      entry.status === "reading" ||
-      entry.status === "read",
+      entry.status === "want_to_read" || entry.status === "reading" || entry.status === "read",
   );
 
   const [localStatus, setLocalStatus] = useState<"none" | "read" | "want_to_read">("none");
@@ -232,13 +230,9 @@ export function BookDetailPage({
 
   const authorNames = authors.join(", ");
 
-  const publishedYear =
-    apiBook?.published_year ??
-    knownMatch?.year ??
-    "Classic";
+  const publishedYear = apiBook?.published_year ?? knownMatch?.year ?? "Classic";
 
-  const pages =
-    apiBook?.isbn13 ? "384 pages" : (knownMatch?.pages ?? "Standard Edition");
+  const pages = apiBook?.isbn13 ? "384 pages" : (knownMatch?.pages ?? "Standard Edition");
 
   const publisher = knownMatch?.publisher ?? "Open Library Catalog";
   const language = knownMatch?.language ?? "English";
@@ -262,12 +256,33 @@ export function BookDetailPage({
   const tags = useMemo(() => {
     const list: string[] = ["Literature", "Book"];
     const text = `${title} ${description} ${authorNames}`.toLowerCase();
-    if (text.includes("history") || text.includes("war") || text.includes("century")) list.push("History");
-    if (text.includes("murder") || text.includes("mystery") || text.includes("crime") || text.includes("detective")) list.push("Mystery");
-    if (text.includes("sci") || text.includes("space") || text.includes("planet") || text.includes("artificial")) list.push("Sci-Fi");
-    if (text.includes("classic") || text.includes("19") || text.includes("tragedy")) list.push("Classics");
-    if (text.includes("drama") || text.includes("love") || text.includes("friendship") || text.includes("family")) list.push("Drama");
-    if (text.includes("game") || text.includes("creative") || text.includes("college")) list.push("Contemporary");
+    if (text.includes("history") || text.includes("war") || text.includes("century"))
+      list.push("History");
+    if (
+      text.includes("murder") ||
+      text.includes("mystery") ||
+      text.includes("crime") ||
+      text.includes("detective")
+    )
+      list.push("Mystery");
+    if (
+      text.includes("sci") ||
+      text.includes("space") ||
+      text.includes("planet") ||
+      text.includes("artificial")
+    )
+      list.push("Sci-Fi");
+    if (text.includes("classic") || text.includes("19") || text.includes("tragedy"))
+      list.push("Classics");
+    if (
+      text.includes("drama") ||
+      text.includes("love") ||
+      text.includes("friendship") ||
+      text.includes("family")
+    )
+      list.push("Drama");
+    if (text.includes("game") || text.includes("creative") || text.includes("college"))
+      list.push("Contemporary");
     return Array.from(new Set(list));
   }, [title, description, authorNames]);
 
@@ -298,7 +313,8 @@ export function BookDetailPage({
   }
 
   const openLibraryKey = apiBook?.open_library_key || knownMatch?.openLibraryKey || "OL-CATALOG";
-  const openLibraryUrl = apiBook?.open_library_url || knownMatch?.openLibraryUrl || "https://openlibrary.org";
+  const openLibraryUrl =
+    apiBook?.open_library_url || knownMatch?.openLibraryUrl || "https://openlibrary.org";
   const isbnDisplay = apiBook?.isbn13 || knownMatch?.isbn13;
 
   return (
@@ -346,11 +362,7 @@ export function BookDetailPage({
         <div className="relative -mt-28 sm:-mt-36 md:-mt-44 z-20 flex flex-col md:flex-row items-start gap-6 md:gap-10">
           {/* Left: Book Cover Poster */}
           <div className="shrink-0 w-36 sm:w-48 md:w-56 aspect-[2/3] rounded-2xl overflow-hidden shadow-2xl shadow-black/90 border border-white/10 ring-1 ring-black/80 bg-[#161922]">
-            <BookCover
-              className="h-full w-full object-cover"
-              coverURL={coverURL}
-              title={title}
-            />
+            <BookCover className="h-full w-full object-cover" coverURL={coverURL} title={title} />
           </div>
 
           {/* Right: Meta, Title, Details Grid, Action Buttons */}
@@ -370,9 +382,7 @@ export function BookDetailPage({
             </h1>
 
             {subtitle && (
-              <p className="mt-1 text-sm sm:text-base text-zinc-400 font-medium">
-                {subtitle}
-              </p>
+              <p className="mt-1 text-sm sm:text-base text-zinc-400 font-medium">{subtitle}</p>
             )}
 
             {/* 4 Details Columns - Real Book Attributes */}
@@ -381,7 +391,10 @@ export function BookDetailPage({
                 <span className="text-[11px] sm:text-xs font-semibold text-zinc-400 uppercase tracking-wider block">
                   Written By
                 </span>
-                <span className="text-xs sm:text-sm font-bold text-white mt-1 block truncate" title={authorNames}>
+                <span
+                  className="text-xs sm:text-sm font-bold text-white mt-1 block truncate"
+                  title={authorNames}
+                >
                   {authorNames}
                 </span>
               </div>
@@ -389,7 +402,10 @@ export function BookDetailPage({
                 <span className="text-[11px] sm:text-xs font-semibold text-zinc-400 uppercase tracking-wider block">
                   Publisher
                 </span>
-                <span className="text-xs sm:text-sm font-bold text-white mt-1 block truncate" title={publisher}>
+                <span
+                  className="text-xs sm:text-sm font-bold text-white mt-1 block truncate"
+                  title={publisher}
+                >
                   {publisher}
                 </span>
               </div>
@@ -488,9 +504,7 @@ export function BookDetailPage({
           <div className="lg:col-span-2 space-y-12">
             {/* Overview Section - Real Writer Synopsis */}
             <section className="space-y-4">
-              <h2 className="text-xl sm:text-2xl font-bold text-white tracking-tight">
-                Overview
-              </h2>
+              <h2 className="text-xl sm:text-2xl font-bold text-white tracking-tight">Overview</h2>
               <p className="text-sm sm:text-base text-zinc-300 leading-relaxed max-w-3xl font-normal">
                 {description}
               </p>
@@ -524,10 +538,7 @@ export function BookDetailPage({
                       key={`${authorName}-${index}`}
                       className="flex flex-col items-center shrink-0 w-24 sm:w-28 text-center group"
                     >
-                      <AuthorAvatar
-                        name={authorName}
-                        olid={apiBook?.author_keys?.[index]}
-                      />
+                      <AuthorAvatar name={authorName} olid={apiBook?.author_keys?.[index]} />
                       <span
                         className="font-semibold text-xs sm:text-sm text-white mt-2.5 truncate w-full"
                         title={authorName}
@@ -563,9 +574,7 @@ export function BookDetailPage({
                 </div>
                 <div className="rounded-xl border border-white/5 bg-[#12151c] p-3.5">
                   <span className="text-zinc-500 block text-xs">Publisher</span>
-                  <span className="font-semibold text-white mt-1 block truncate">
-                    {publisher}
-                  </span>
+                  <span className="font-semibold text-white mt-1 block truncate">{publisher}</span>
                 </div>
               </div>
             </section>
@@ -601,7 +610,9 @@ export function BookDetailPage({
                     <div className="font-semibold text-white text-sm group-hover:text-[#c084fc] transition">
                       Open Library
                     </div>
-                    <div className="text-[11px] text-zinc-400">View source catalog &amp; editions</div>
+                    <div className="text-[11px] text-zinc-400">
+                      View source catalog &amp; editions
+                    </div>
                   </div>
                 </div>
                 <span className="text-zinc-400 group-hover:text-white transition">↗</span>
@@ -610,9 +621,7 @@ export function BookDetailPage({
 
             {/* Users' Collections Card */}
             <div className="rounded-2xl border border-white/10 bg-[#12151c] p-5 shadow-xl space-y-4">
-              <h3 className="text-sm font-bold text-white tracking-tight">
-                Featured Collections
-              </h3>
+              <h3 className="text-sm font-bold text-white tracking-tight">Featured Collections</h3>
 
               <div className="space-y-3">
                 <Link

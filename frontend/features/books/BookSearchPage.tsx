@@ -132,8 +132,8 @@ export function BookSearchPage({
               {result && result.meta.total > 0
                 ? `${result.meta.total.toLocaleString()} books found`
                 : hasSearch
-                ? `Results for "${debouncedQuery}"`
-                : "Explore Books"}
+                  ? `Results for "${debouncedQuery}"`
+                  : "Explore Books"}
             </h2>
           </div>
           {result?.meta.source === "local_catalog" && (
@@ -149,7 +149,8 @@ export function BookSearchPage({
             <span className="text-3xl block mb-3">📖</span>
             <h3 className="text-lg font-bold text-white">Search any book in the world</h3>
             <p className="mt-2 text-sm text-zinc-400 leading-relaxed">
-              Type any title, author, or keyword above to instantly search through millions of editions.
+              Type any title, author, or keyword above to instantly search through millions of
+              editions.
             </p>
           </div>
         ) : search.isPending ? (
@@ -228,7 +229,8 @@ export function BookSearchPage({
           <div className="mt-12 rounded-3xl border border-white/10 bg-[#12151c] p-10 text-center max-w-lg mx-auto shadow-2xl">
             <h3 className="text-lg font-bold text-white">No exact match found</h3>
             <p className="mt-2 text-xs sm:text-sm text-zinc-400">
-              Try searching with a shorter title, author last name, or try one of the popular titles below:
+              Try searching with a shorter title, author last name, or try one of the popular titles
+              below:
             </p>
             <div className="mt-5 flex flex-wrap justify-center gap-2">
               {FAMOUS_SUGGESTIONS.slice(0, 5).map((s) => (

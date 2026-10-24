@@ -5,29 +5,51 @@ import { useEffect, useState } from "react";
 
 // Curated high-res portraits for world-renowned authors for instant loading
 const KNOWN_AUTHOR_PHOTOS: Record<string, string> = {
-  "george orwell": "https://upload.wikimedia.org/wikipedia/commons/thumb/7/7e/George_Orwell_press_photo.jpg/330px-George_Orwell_press_photo.jpg",
-  "f. scott fitzgerald": "https://upload.wikimedia.org/wikipedia/commons/thumb/5/5c/F_Scott_Fitzgerald_1921.jpg/330px-F_Scott_Fitzgerald_1921.jpg",
+  "george orwell":
+    "https://upload.wikimedia.org/wikipedia/commons/thumb/7/7e/George_Orwell_press_photo.jpg/330px-George_Orwell_press_photo.jpg",
+  "f. scott fitzgerald":
+    "https://upload.wikimedia.org/wikipedia/commons/thumb/5/5c/F_Scott_Fitzgerald_1921.jpg/330px-F_Scott_Fitzgerald_1921.jpg",
   "donna tartt": "https://upload.wikimedia.org/wikipedia/commons/a/a7/Donna_Tartt.jpg",
-  "haruki murakami": "https://upload.wikimedia.org/wikipedia/commons/thumb/9/90/Haruki_Murakami_2009.jpg/330px-Haruki_Murakami_2009.jpg",
-  "frank herbert": "https://upload.wikimedia.org/wikipedia/commons/thumb/8/8d/Frank_Herbert_-_1984.jpg/330px-Frank_Herbert_-_1984.jpg",
-  "j.k. rowling": "https://upload.wikimedia.org/wikipedia/commons/thumb/5/5d/J._K._Rowling_2010.jpg/330px-J._K._Rowling_2010.jpg",
-  "jane austen": "https://upload.wikimedia.org/wikipedia/commons/thumb/d/d4/Jane_Austen_coloured_version.jpg/330px-Jane_Austen_coloured_version.jpg",
-  "harper lee": "https://upload.wikimedia.org/wikipedia/commons/thumb/5/5f/HarperLee_Richmond.jpg/330px-HarperLee_Richmond.jpg",
-  "j.r.r. tolkien": "https://upload.wikimedia.org/wikipedia/commons/thumb/d/d4/J._R._R._Tolkien%2C_ca._1925.jpg/330px-J._R._R._Tolkien%2C_ca._1925.jpg",
-  "fyodor dostoevsky": "https://upload.wikimedia.org/wikipedia/commons/thumb/7/78/Vasily_Perov_-_%D0%9F%D0%BE%D1%80%D1%82%D1%80%D0%B5%D1%82_%D0%A4.%D0%9C.%D0%94%D0%BE%D1%81%D1%82%D0%BE%D0%B5%D0%B2%D1%81%D0%BA%D0%BE%D0%B3%D0%BE_-_Google_Art_Project.jpg/330px-Vasily_Perov_-_%D0%9F%D0%BE%D1%80%D1%82%D1%80%D0%B5%D1%82_%D0%A4.%D0%9C.%D0%94%D0%BE%D1%81%D1%82%D0%BE%D0%B5%D0%B2%D1%81%D0%BA%D0%BE%D0%B3%D0%BE_-_Google_Art_Project.jpg",
-  "ray bradbury": "https://upload.wikimedia.org/wikipedia/commons/thumb/4/4c/Ray_Bradbury_1975_portrait.jpg/330px-Ray_Bradbury_1975_portrait.jpg",
-  "aldous huxley": "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e9/Aldous_Huxley_photograph.jpg/330px-Aldous_Huxley_photograph.jpg",
-  "kazuo ishiguro": "https://upload.wikimedia.org/wikipedia/commons/thumb/a/ae/Kazuo_Ishiguro_in_2017.jpg/330px-Kazuo_Ishiguro_in_2017.jpg",
-  "min jin lee": "https://upload.wikimedia.org/wikipedia/commons/thumb/d/d3/Min_Jin_Lee_by_Elena_Seibert.jpg/330px-Min_Jin_Lee_by_Elena_Seibert.jpg",
-  "gabrielle zevin": "https://upload.wikimedia.org/wikipedia/commons/thumb/3/30/Gabrielle_Zevin_at_the_2023_Texas_Book_Festival.jpg/330px-Gabrielle_Zevin_at_the_2023_Texas_Book_Festival.jpg",
-  "c.s. lewis": "https://upload.wikimedia.org/wikipedia/commons/thumb/1/1e/C.s.lewis3.JPG/330px-C.s.lewis3.JPG",
-  "leo tolstoy": "https://upload.wikimedia.org/wikipedia/commons/thumb/c/c6/L.N.Tolstoy_Prokudin-Gorsky.jpg/330px-L.N.Tolstoy_Prokudin-Gorsky.jpg",
-  "virginia woolf": "https://upload.wikimedia.org/wikipedia/commons/thumb/0/0b/George_Charles_Beresford_-_Virginia_Woolf_in_1902_-_Restoration.jpg/330px-George_Charles_Beresford_-_Virginia_Woolf_in_1902_-_Restoration.jpg",
-  "franz kafka": "https://upload.wikimedia.org/wikipedia/commons/thumb/2/26/Franz_Kafka%2C_1923.jpg/330px-Franz_Kafka%2C_1923.jpg",
-  "ernest hemingway": "https://upload.wikimedia.org/wikipedia/commons/thumb/2/28/ErnestHemingway.jpg/330px-ErnestHemingway.jpg",
-  "agatha christie": "https://upload.wikimedia.org/wikipedia/commons/thumb/c/cf/Agatha_Christie.png/330px-Agatha_Christie.png",
-  "stephen king": "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e3/Stephen_King%2C_Comicon.jpg/330px-Stephen_King%2C_Comicon.jpg",
-  "oscar wilde": "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a7/Oscar_Wilde_Sarony.jpg/330px-Oscar_Wilde_Sarony.jpg",
+  "haruki murakami":
+    "https://upload.wikimedia.org/wikipedia/commons/thumb/9/90/Haruki_Murakami_2009.jpg/330px-Haruki_Murakami_2009.jpg",
+  "frank herbert":
+    "https://upload.wikimedia.org/wikipedia/commons/thumb/8/8d/Frank_Herbert_-_1984.jpg/330px-Frank_Herbert_-_1984.jpg",
+  "j.k. rowling":
+    "https://upload.wikimedia.org/wikipedia/commons/thumb/5/5d/J._K._Rowling_2010.jpg/330px-J._K._Rowling_2010.jpg",
+  "jane austen":
+    "https://upload.wikimedia.org/wikipedia/commons/thumb/d/d4/Jane_Austen_coloured_version.jpg/330px-Jane_Austen_coloured_version.jpg",
+  "harper lee":
+    "https://upload.wikimedia.org/wikipedia/commons/thumb/5/5f/HarperLee_Richmond.jpg/330px-HarperLee_Richmond.jpg",
+  "j.r.r. tolkien":
+    "https://upload.wikimedia.org/wikipedia/commons/thumb/d/d4/J._R._R._Tolkien%2C_ca._1925.jpg/330px-J._R._R._Tolkien%2C_ca._1925.jpg",
+  "fyodor dostoevsky":
+    "https://upload.wikimedia.org/wikipedia/commons/thumb/7/78/Vasily_Perov_-_%D0%9F%D0%BE%D1%80%D1%82%D1%80%D0%B5%D1%82_%D0%A4.%D0%9C.%D0%94%D0%BE%D1%81%D1%82%D0%BE%D0%B5%D0%B2%D1%81%D0%BA%D0%BE%D0%B3%D0%BE_-_Google_Art_Project.jpg/330px-Vasily_Perov_-_%D0%9F%D0%BE%D1%80%D1%82%D1%80%D0%B5%D1%82_%D0%A4.%D0%9C.%D0%94%D0%BE%D1%81%D1%82%D0%BE%D0%B5%D0%B2%D1%81%D0%BA%D0%BE%D0%B3%D0%BE_-_Google_Art_Project.jpg",
+  "ray bradbury":
+    "https://upload.wikimedia.org/wikipedia/commons/thumb/4/4c/Ray_Bradbury_1975_portrait.jpg/330px-Ray_Bradbury_1975_portrait.jpg",
+  "aldous huxley":
+    "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e9/Aldous_Huxley_photograph.jpg/330px-Aldous_Huxley_photograph.jpg",
+  "kazuo ishiguro":
+    "https://upload.wikimedia.org/wikipedia/commons/thumb/a/ae/Kazuo_Ishiguro_in_2017.jpg/330px-Kazuo_Ishiguro_in_2017.jpg",
+  "min jin lee":
+    "https://upload.wikimedia.org/wikipedia/commons/thumb/d/d3/Min_Jin_Lee_by_Elena_Seibert.jpg/330px-Min_Jin_Lee_by_Elena_Seibert.jpg",
+  "gabrielle zevin":
+    "https://upload.wikimedia.org/wikipedia/commons/thumb/3/30/Gabrielle_Zevin_at_the_2023_Texas_Book_Festival.jpg/330px-Gabrielle_Zevin_at_the_2023_Texas_Book_Festival.jpg",
+  "c.s. lewis":
+    "https://upload.wikimedia.org/wikipedia/commons/thumb/1/1e/C.s.lewis3.JPG/330px-C.s.lewis3.JPG",
+  "leo tolstoy":
+    "https://upload.wikimedia.org/wikipedia/commons/thumb/c/c6/L.N.Tolstoy_Prokudin-Gorsky.jpg/330px-L.N.Tolstoy_Prokudin-Gorsky.jpg",
+  "virginia woolf":
+    "https://upload.wikimedia.org/wikipedia/commons/thumb/0/0b/George_Charles_Beresford_-_Virginia_Woolf_in_1902_-_Restoration.jpg/330px-George_Charles_Beresford_-_Virginia_Woolf_in_1902_-_Restoration.jpg",
+  "franz kafka":
+    "https://upload.wikimedia.org/wikipedia/commons/thumb/2/26/Franz_Kafka%2C_1923.jpg/330px-Franz_Kafka%2C_1923.jpg",
+  "ernest hemingway":
+    "https://upload.wikimedia.org/wikipedia/commons/thumb/2/28/ErnestHemingway.jpg/330px-ErnestHemingway.jpg",
+  "agatha christie":
+    "https://upload.wikimedia.org/wikipedia/commons/thumb/c/cf/Agatha_Christie.png/330px-Agatha_Christie.png",
+  "stephen king":
+    "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e3/Stephen_King%2C_Comicon.jpg/330px-Stephen_King%2C_Comicon.jpg",
+  "oscar wilde":
+    "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a7/Oscar_Wilde_Sarony.jpg/330px-Oscar_Wilde_Sarony.jpg",
 };
 
 // In-memory cache to avoid duplicate network calls

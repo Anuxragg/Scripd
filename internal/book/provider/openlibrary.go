@@ -69,7 +69,7 @@ func (p *OpenLibrary) Search(ctx context.Context, query string, page, limit int)
 	parameters.Set("q", escapeSolrQuery(query))
 	parameters.Set("page", strconv.Itoa(page))
 	parameters.Set("limit", strconv.Itoa(limit))
-	parameters.Set("fields", "key,title,author_name,first_publish_year,cover_i,isbn")
+	parameters.Set("fields", "key,title,subtitle,author_name,first_publish_year,cover_i,isbn")
 	parsedURL.RawQuery = parameters.Encode()
 
 	request, err := http.NewRequestWithContext(requestContext, http.MethodGet, parsedURL.String(), nil)

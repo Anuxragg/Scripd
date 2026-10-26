@@ -51,8 +51,8 @@ func (h *Handler) RegisterRoutes(router chi.Router) {
 	router.Get("/users/{username}/followers", h.ListFollowers)
 	router.Get("/users/{username}/following", h.ListFollowing)
 
-	// Protected routes (gated behind verified user)
-	router.With(h.requireVerified, mutationLimit).Post("/users/{username}/follow", h.Follow)
+	// Protected routes (require authenticated user)
+	router.With(h.requireUser, mutationLimit).Post("/users/{username}/follow", h.Follow)
 	router.With(h.requireUser, mutationLimit).Delete("/users/{username}/follow", h.Unfollow)
 }
 

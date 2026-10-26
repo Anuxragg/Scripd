@@ -1,13 +1,6 @@
 "use client";
 
-import {
-  useEffect,
-  useId,
-  useLayoutEffect,
-  useRef,
-  useState,
-  useSyncExternalStore,
-} from "react";
+import { useEffect, useId, useLayoutEffect, useRef, useState, useSyncExternalStore } from "react";
 import type { KeyboardEvent as ReactKeyboardEvent, RefObject } from "react";
 import * as PopoverPrimitive from "@radix-ui/react-popover";
 import {
@@ -51,22 +44,14 @@ export interface ReactionsProps {
   value?: Reaction[];
   defaultValue?: Reaction[];
   /** Called with the next reactions and the change that produced them. */
-  onValueChange?: (
-    next: Reaction[],
-    change: { id: string; reacted: boolean },
-  ) => void;
+  onValueChange?: (next: Reaction[], change: { id: string; reacted: boolean }) => void;
   /** Accessible name for the bar. */
   label?: string;
   className?: string;
 }
 
 const enter = [...motionTokens.ease.enter] as [number, number, number, number];
-const standard = [...motionTokens.ease.standard] as [
-  number,
-  number,
-  number,
-  number,
-];
+const standard = [...motionTokens.ease.standard] as [number, number, number, number];
 const blur = (px: number) => `blur(${px}px)`;
 const noop = () => () => {};
 
@@ -158,25 +143,14 @@ const digitTransition = {
 
 function RollingCount({ value, reduced }: { value: number; reduced: boolean }) {
   const [roll, setRoll] = useState({ value, direction: 1 });
-  if (roll.value !== value)
-    setRoll({ value, direction: value > roll.value ? 1 : -1 });
+  if (roll.value !== value) setRoll({ value, direction: value > roll.value ? 1 : -1 });
   const row = useRef<HTMLSpanElement>(null);
   const text = String(value);
-  const width = useFollowSize(
-    row,
-    "width",
-    text,
-    reduced,
-    motionTokens.spring.morph,
-  );
+  const width = useFollowSize(row, "width", text, reduced, motionTokens.spring.morph);
   return (
     <motion.span className={styles.count} style={{ width }} aria-hidden="true">
       <span ref={row} className={styles.digits}>
-        <AnimatePresence
-          mode="popLayout"
-          initial={false}
-          custom={roll.direction}
-        >
+        <AnimatePresence mode="popLayout" initial={false} custom={roll.direction}>
           {[...text].map((digit, index) => (
             <motion.span
               key={`${text.length - index}:${digit}`}
@@ -227,11 +201,7 @@ function KickIcon({
     [rotate, scale],
   );
   return (
-    <motion.span
-      className={styles.icon}
-      style={{ scale, rotate }}
-      aria-hidden="true"
-    >
+    <motion.span className={styles.icon} style={{ scale, rotate }} aria-hidden="true">
       <Icon size={16} strokeWidth={1.75} />
     </motion.span>
   );
@@ -356,11 +326,7 @@ function Picker({
         onKeyDown={onKeyDown}
         onPointerLeave={() => setHovered(null)}
       >
-        <motion.span
-          className={styles.highlight}
-          style={{ x }}
-          aria-hidden="true"
-        />
+        <motion.span className={styles.highlight} style={{ x }} aria-hidden="true" />
         {options.map((item, index) => {
           const Icon = item.icon;
           const lit = index === active;
@@ -377,8 +343,7 @@ function Picker({
               tabIndex={index === focusIndex ? 0 : -1}
               onFocus={() => setFocusIndex(index)}
               onPointerMove={(event) => {
-                if (event.pointerType === "mouse" && hovered !== index)
-                  setHovered(index);
+                if (event.pointerType === "mouse" && hovered !== index) setHovered(index);
               }}
               onClick={() => onPick(item.id)}
               initial={reduced ? fadeIn : iconIn}
@@ -424,9 +389,7 @@ function Picker({
               animate={rest}
               exit={reduced ? fadeOut : textOut}
               transition={{
-                duration: reduced
-                  ? motionTokens.duration.fast
-                  : motionTokens.duration.standard,
+                duration: reduced ? motionTokens.duration.fast : motionTokens.duration.standard,
                 ease: enter,
               }}
             >
@@ -459,9 +422,7 @@ export function Reactions({
   const trigger = useRef<HTMLButtonElement>(null);
   const refocus = useRef<string | null>(null);
   const byId = new Map(options.map((option) => [option.id, option]));
-  const shown = list.filter(
-    (reaction) => reaction.count > 0 && byId.has(reaction.id),
-  );
+  const shown = list.filter((reaction) => reaction.count > 0 && byId.has(reaction.id));
   const reacted = new Set(
     shown.filter((reaction) => reaction.reacted).map((reaction) => reaction.id),
   );
@@ -482,9 +443,7 @@ export function Reactions({
     const next =
       target === "add"
         ? trigger.current
-        : bar.current?.querySelector<HTMLElement>(
-            `[data-reaction="${CSS.escape(target)}"]`,
-          );
+        : bar.current?.querySelector<HTMLElement>(`[data-reaction="${CSS.escape(target)}"]`);
     next?.focus();
   });
 
@@ -496,27 +455,17 @@ export function Reactions({
     const count = Math.max(0, (current?.count ?? 0) + (add ? 1 : -1));
     const next = current
       ? list
-          .map((reaction) =>
-            reaction.id === id
-              ? { ...reaction, count, reacted: add }
-              : reaction,
-          )
+          .map((reaction) => (reaction.id === id ? { ...reaction, count, reacted: add } : reaction))
           .filter((reaction) => reaction.count > 0)
-      : [
-          ...list.filter((reaction) => reaction.id !== id),
-          { id, count: 1, reacted: true },
-        ];
+      : [...list.filter((reaction) => reaction.id !== id), { id, count: 1, reacted: true }];
     if (count === 0) {
-      const pill = bar.current?.querySelector(
-        `[data-reaction="${CSS.escape(id)}"]`,
-      );
+      const pill = bar.current?.querySelector(`[data-reaction="${CSS.escape(id)}"]`);
       if (pill && pill === document.activeElement) {
         const index = shown.findIndex((reaction) => reaction.id === id);
         refocus.current = shown[index + 1]?.id ?? shown[index - 1]?.id ?? "add";
       }
     }
-    if (add)
-      setPops((previous) => ({ ...previous, [id]: (previous[id] ?? 0) + 1 }));
+    if (add) setPops((previous) => ({ ...previous, [id]: (previous[id] ?? 0) + 1 }));
     if (value === undefined) setOwn(next);
     setAnnouncement(
       add
@@ -535,10 +484,7 @@ export function Reactions({
   }
 
   return (
-    <motion.div
-      className={[styles.root, className].filter(Boolean).join(" ")}
-      style={{ height }}
-    >
+    <motion.div className={[styles.root, className].filter(Boolean).join(" ")} style={{ height }}>
       <div ref={bar} className={styles.bar} role="group" aria-label={label}>
         <LayoutGroup id={groupId}>
           <AnimatePresence mode="popLayout" initial={false}>
@@ -568,11 +514,7 @@ export function Reactions({
                       : pillTransition
                   }
                 >
-                  <KickIcon
-                    icon={option.icon}
-                    pop={pops[reaction.id] ?? 0}
-                    reduced={reduced}
-                  />
+                  <KickIcon icon={option.icon} pop={pops[reaction.id] ?? 0} reduced={reduced} />
                   <RollingCount value={reaction.count} reduced={reduced} />
                   <span className={styles.tip} aria-hidden="true">
                     {option.label}
@@ -588,9 +530,7 @@ export function Reactions({
                 ref={trigger}
                 layout="position"
                 transition={
-                  reduced
-                    ? { layout: { duration: 0 } }
-                    : { layout: motionTokens.spring.morph }
+                  reduced ? { layout: { duration: 0 } } : { layout: motionTokens.spring.morph }
                 }
                 type="button"
                 className={styles.add}
@@ -604,11 +544,7 @@ export function Reactions({
                       initial={reduced ? fadeIn : iconIn}
                       animate={rest}
                       exit={reduced ? fadeOut : iconOut}
-                      transition={
-                        reduced
-                          ? { duration: motionTokens.duration.fast }
-                          : iconEnter
-                      }
+                      transition={reduced ? { duration: motionTokens.duration.fast } : iconEnter}
                     >
                       {open ? (
                         <X size={16} strokeWidth={1.75} />
@@ -682,17 +618,8 @@ export function Reactions({
                       }
                     >
                       {/* An invisible arrow lets Radix place the transform origin on the trigger's centre, so the tray grows out of the button even when it shifts to stay on screen. */}
-                      <PopoverPrimitive.Arrow
-                        width={0}
-                        height={0}
-                        className={styles.arrow}
-                      />
-                      <Picker
-                        options={options}
-                        reacted={reacted}
-                        reduced={reduced}
-                        onPick={pick}
-                      />
+                      <PopoverPrimitive.Arrow width={0} height={0} className={styles.arrow} />
+                      <Picker options={options} reacted={reacted} reduced={reduced} onPick={pick} />
                     </motion.div>
                   </PopoverPrimitive.Content>
                 </PopoverPrimitive.Portal>
@@ -709,4 +636,3 @@ export function Reactions({
 }
 
 export default Reactions;
-

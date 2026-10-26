@@ -14,17 +14,18 @@ import {
   MoreHorizontal,
   X,
 } from "lucide-react";
-import {
-  Reactions,
-  type Reaction,
-  type ReactionOption,
-} from "@/components/ui/reactions";
-import {
-  useCreateComment,
-  useDeleteComment,
-  useReviewComments,
-} from "@/features/reviews/hooks";
+import { Reactions, type Reaction, type ReactionOption } from "@/components/ui/reactions";
+import { useCreateComment, useDeleteComment, useReviewComments } from "@/features/reviews/hooks";
 import type { ReviewComment } from "@/features/reviews/api";
+import { useClientStorage } from "@/lib/useClientStorage";
+
+interface CommentLikesData {
+  likedIds?: Record<string, boolean>;
+  counts?: Record<string, number>;
+}
+
+const DEFAULT_LIKES_DATA: CommentLikesData = { likedIds: {}, counts: {} };
+const DEFAULT_REACTIONS_DATA: Record<string, Reaction[]> = {};
 
 const COMMENT_REACTION_OPTIONS: ReactionOption[] = [
   { id: "love", label: "Love", icon: Heart },
@@ -98,30 +99,7 @@ export function ReviewCommentsThread({
 
   // Local storage cache for persistent client replies
   const storageKey = `scripd_replies_store_${reviewID}`;
-  const [localComments, setLocalComments] = useState<ReviewComment[]>([]);
-  const [isHydrated, setIsHydrated] = useState(false);
-
-  useEffect(() => {
-    try {
-      const cached = localStorage.getItem(storageKey);
-      if (cached) {
-        setLocalComments(JSON.parse(cached));
-      }
-    } catch {
-      // Safe fallback
-    }
-    setIsHydrated(true);
-  }, [storageKey]);
-
-  useEffect(() => {
-    if (isHydrated) {
-      try {
-        localStorage.setItem(storageKey, JSON.stringify(localComments));
-      } catch {
-        // Safe ignore
-      }
-    }
-  }, [localComments, storageKey, isHydrated]);
+  const [localComments, setLocalComments] = useClientStorage<ReviewComment[]>(storageKey, []);
 
   // Combine backend comments with local comments (deduplicated by ID)
   const allComments = useMemo(() => {
@@ -157,72 +135,35 @@ export function ReviewCommentsThread({
   const [expandedCommentIds, setExpandedCommentIds] = useState<string[]>([]);
   function toggleSeeMore(commentId: string) {
     setExpandedCommentIds((prev) =>
-      prev.includes(commentId)
-        ? prev.filter((id) => id !== commentId)
-        : [...prev, commentId],
+      prev.includes(commentId) ? prev.filter((id) => id !== commentId) : [...prev, commentId],
     );
   }
 
   // Local like & reactions state per comment
-  const [likedCommentIds, setLikedCommentIds] = useState<Record<string, boolean>>({});
-  const [commentLikes, setCommentLikes] = useState<Record<string, number>>({});
-  const [commentReactions, setCommentReactions] = useState<Record<string, Reaction[]>>({});
+  const [likesData, setLikesData] = useClientStorage<CommentLikesData>(
+    `scripd_replies_likes_${reviewID}`,
+    DEFAULT_LIKES_DATA,
+  );
+  const [commentReactions, setCommentReactions] = useClientStorage<Record<string, Reaction[]>>(
+    `scripd_replies_reactions_${reviewID}`,
+    DEFAULT_REACTIONS_DATA,
+  );
+  const likedCommentIds = likesData.likedIds || {};
+  const commentLikes = likesData.counts || {};
   const replyInputRef = useRef<HTMLInputElement>(null);
 
-  // Load cached comment likes and reactions
-  useEffect(() => {
-    try {
-      const cachedLikes = localStorage.getItem(`scripd_replies_likes_${reviewID}`);
-      if (cachedLikes) {
-        const parsed = JSON.parse(cachedLikes);
-        if (parsed.likedIds) setLikedCommentIds(parsed.likedIds);
-        if (parsed.counts) setCommentLikes(parsed.counts);
-      }
-      const cachedReactions = localStorage.getItem(`scripd_replies_reactions_${reviewID}`);
-      if (cachedReactions) {
-        setCommentReactions(JSON.parse(cachedReactions));
-      }
-    } catch {
-      // Safe fallback
-    }
-  }, [reviewID]);
-
-  // Persist likes & reactions
-  useEffect(() => {
-    if (isHydrated) {
-      try {
-        localStorage.setItem(
-          `scripd_replies_likes_${reviewID}`,
-          JSON.stringify({ likedIds: likedCommentIds, counts: commentLikes })
-        );
-      } catch {
-        // Safe ignore
-      }
-    }
-  }, [likedCommentIds, commentLikes, reviewID, isHydrated]);
-
-  useEffect(() => {
-    if (isHydrated) {
-      try {
-        localStorage.setItem(
-          `scripd_replies_reactions_${reviewID}`,
-          JSON.stringify(commentReactions)
-        );
-      } catch {
-        // Safe ignore
-      }
-    }
-  }, [commentReactions, reviewID, isHydrated]);
-
   function handleToggleCommentLike(commentId: string) {
-    setLikedCommentIds((prev) => {
-      const currentlyLiked = Boolean(prev[commentId]);
+    setLikesData((prev) => {
+      const prevLikedIds = prev.likedIds || {};
+      const prevCounts = prev.counts || {};
+      const currentlyLiked = Boolean(prevLikedIds[commentId]);
       const nextLiked = !currentlyLiked;
-      setCommentLikes((counts) => ({
-        ...counts,
-        [commentId]: Math.max(0, (counts[commentId] ?? 0) + (nextLiked ? 1 : -1)),
-      }));
-      return { ...prev, [commentId]: nextLiked };
+      const currentCount = prevCounts[commentId] ?? 0;
+      const nextCount = Math.max(0, currentCount + (nextLiked ? 1 : -1));
+      return {
+        likedIds: { ...prevLikedIds, [commentId]: nextLiked },
+        counts: { ...prevCounts, [commentId]: nextCount },
+      };
     });
   }
 
@@ -242,8 +183,7 @@ export function ReviewCommentsThread({
 
     setIsSubmitting(true);
     const authorUsername = currentUser?.username || "Anuxragg";
-    const authorDisplayName =
-      currentUser?.display_name || currentUser?.username || "Anuxragg";
+    const authorDisplayName = currentUser?.display_name || currentUser?.username || "Anuxragg";
     const authorId =
       currentUser?.id ||
       (typeof crypto !== "undefined" && crypto.randomUUID
@@ -251,7 +191,10 @@ export function ReviewCommentsThread({
         : `user_${Date.now()}`);
 
     const newLocalComment: ReviewComment = {
-      id: typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : `local_${Date.now()}`,
+      id:
+        typeof crypto !== "undefined" && crypto.randomUUID
+          ? crypto.randomUUID()
+          : `local_${Date.now()}`,
       review_id: reviewID,
       user_id: authorId,
       body: text,
@@ -371,14 +314,11 @@ export function ReviewCommentsThread({
           allComments.map((comment) => {
             const isAuthor =
               currentUser &&
-              comment.author.username.toLowerCase() ===
-                currentUser.username.toLowerCase();
+              comment.author.username.toLowerCase() === currentUser.username.toLowerCase();
             const isLong = comment.body.length > 220;
             const isExpanded = expandedCommentIds.includes(comment.id);
             const displayText =
-              isLong && !isExpanded
-                ? `${comment.body.slice(0, 220)}…`
-                : comment.body;
+              isLong && !isExpanded ? `${comment.body.slice(0, 220)}…` : comment.body;
 
             const isLiked = Boolean(likedCommentIds[comment.id]);
             const likes = commentLikes[comment.id] ?? 0;
@@ -416,14 +356,9 @@ export function ReviewCommentsThread({
                       <span className="font-bold text-white tracking-tight">
                         {comment.author.display_name || comment.author.username}
                       </span>
-                      <span className="text-zinc-500 text-[11px]">
-                        @{comment.author.username}
-                      </span>
+                      <span className="text-zinc-500 text-[11px]">@{comment.author.username}</span>
                       <span className="text-zinc-600">·</span>
-                      <span
-                        suppressHydrationWarning
-                        className="text-zinc-500 text-[11px]"
-                      >
+                      <span suppressHydrationWarning className="text-zinc-500 text-[11px]">
                         {formatCommentDate(comment.created_at)}
                       </span>
                     </div>
@@ -486,9 +421,7 @@ export function ReviewCommentsThread({
                       title={isLiked ? "Unlike" : "Like"}
                     >
                       <ThumbsUp
-                        className={`h-4 w-4 ${
-                          isLiked ? "fill-white text-white" : "text-zinc-400"
-                        }`}
+                        className={`h-4 w-4 ${isLiked ? "fill-white text-white" : "text-zinc-400"}`}
                         strokeWidth={isLiked ? 2 : 1.8}
                       />
                       {likes > 0 && (

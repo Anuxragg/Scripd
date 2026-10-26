@@ -29,7 +29,10 @@
   cursor: pointer;
   user-select: none;
   outline: none;
-  transition: background 150ms ease, border-color 150ms ease, color 150ms ease;
+  transition:
+    background 150ms ease,
+    border-color 150ms ease,
+    color 150ms ease;
 }
 
 .pill:hover {
@@ -110,7 +113,10 @@
   cursor: pointer;
   user-select: none;
   outline: none;
-  transition: background 150ms ease, border-color 150ms ease, color 150ms ease;
+  transition:
+    background 150ms ease,
+    border-color 150ms ease,
+    color 150ms ease;
 }
 
 .add:hover {
@@ -225,4 +231,3 @@
   white-space: nowrap;
   border: 0;
 }
-

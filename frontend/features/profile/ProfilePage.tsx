@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState, useSyncExternalStore } from "react";
 import { useCurrentUser } from "@/features/auth/hooks";
 import {
   useProfile,
@@ -13,6 +13,7 @@ import {
 } from "@/features/profile/hooks";
 import { useReadEntries } from "@/features/reads/hooks";
 import type { ReadEntry } from "@/features/reads/api";
+import { notifyStorageChange, subscribeStorage } from "@/lib/useClientStorage";
 
 type TabKey = "profile" | "activity" | "books" | "diary" | "reviews" | "want_to_read";
 
@@ -27,45 +28,45 @@ export function ProfilePage({ username }: { username: string }) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isQRModalOpen, setIsQRModalOpen] = useState(false);
   const [linkCopied, setLinkCopied] = useState(false);
-  const [userLocation] = useState(() => {
-    if (typeof window === "undefined") return "";
-    try {
-      const savedMeta = localStorage.getItem(`scripd_user_meta_${username}`);
-      if (savedMeta) {
-        const parsed = JSON.parse(savedMeta);
-        return parsed.location || "";
-      }
-    } catch {
-      // ignore
-    }
-    return "";
-  });
+  const [activeTab, setActiveTab] = useState<TabKey>("profile");
 
-  const [userWebsite] = useState(() => {
-    if (typeof window === "undefined") return "";
-    try {
-      const savedMeta = localStorage.getItem(`scripd_user_meta_${username}`);
-      if (savedMeta) {
-        const parsed = JSON.parse(savedMeta);
-        return parsed.website || "";
+  const normalizedUsername = username.toLowerCase();
+
+  const userLocation = useSyncExternalStore(
+    subscribeStorage,
+    () => {
+      try {
+        const savedMeta = localStorage.getItem(`scripd_user_meta_${username}`);
+        if (savedMeta) {
+          return (JSON.parse(savedMeta) as { location?: string }).location || "";
+        }
+      } catch {
+        // ignore
       }
-    } catch {
-      // ignore
-    }
-    return "";
-  });
+      return "";
+    },
+    () => "",
+  );
+
+  const userWebsite = useSyncExternalStore(
+    subscribeStorage,
+    () => {
+      try {
+        const savedMeta = localStorage.getItem(`scripd_user_meta_${username}`);
+        if (savedMeta) {
+          return (JSON.parse(savedMeta) as { website?: string }).website || "";
+        }
+      } catch {
+        // ignore
+      }
+      return "";
+    },
+    () => "",
+  );
 
   const currentUserID = userQuery.data?.id;
   const profile = profileQuery.data;
   const isOwner = Boolean(currentUserID && profile && currentUserID === profile.id);
-  const avatarUrl =
-    profile?.avatar_url ||
-    (typeof window !== "undefined" && username
-      ? localStorage.getItem(`scripd_user_avatar_${username}`)
-      : "") ||
-    "";
-
-  const [activeTab, setActiveTab] = useState<TabKey>("profile");
 
   // Load user's reads (for favorite books, recent activity, diary, want to read)
   const readsQuery = useReadEntries({ limit: 24 }, isOwner);
@@ -86,6 +87,60 @@ export function ProfilePage({ username }: { username: string }) {
 
   // Recent activity (latest 4 entries)
   const recentActivity = allReads.slice(0, 4);
+
+  const localFollowed = useSyncExternalStore(
+    subscribeStorage,
+    () => {
+      try {
+        const stored = localStorage.getItem(`scripd_following_${normalizedUsername}`);
+        return stored !== null ? stored === "true" : null;
+      } catch {
+        return null;
+      }
+    },
+    () => null,
+  );
+
+  const isFollowing =
+    localFollowed !== null ? localFollowed : (followStatusQuery.data?.is_following ?? false);
+
+  const hasLocalFollower = useSyncExternalStore(
+    subscribeStorage,
+    () => {
+      try {
+        return (
+          localStorage.getItem(`scripd_following_${normalizedUsername}`) === "true" ||
+          localStorage.getItem(`scripd_has_follower_${normalizedUsername}`) === "true"
+        );
+      } catch {
+        return false;
+      }
+    },
+    () => false,
+  );
+
+  const localFollowingCount = useSyncExternalStore(
+    subscribeStorage,
+    () => {
+      try {
+        const raw = localStorage.getItem(`scripd_user_${normalizedUsername}_following`);
+        return raw ? (JSON.parse(raw) as unknown[]).length : 0;
+      } catch {
+        return 0;
+      }
+    },
+    () => 0,
+  );
+
+  const baseFollowers = followStatusQuery.data?.followers_count ?? 0;
+  const followersCount = useMemo(() => {
+    if (baseFollowers > 0) return baseFollowers;
+    if (isFollowing || hasLocalFollower) return 1;
+    return 0;
+  }, [baseFollowers, isFollowing, hasLocalFollower]);
+
+  const baseFollowing = followStatusQuery.data?.following_count ?? 0;
+  const followingCount = Math.max(baseFollowing, localFollowingCount);
 
   async function handleCopyLink() {
     try {
@@ -108,50 +163,33 @@ export function ProfilePage({ username }: { username: string }) {
 
   const isFollowPending = followMutation.isPending || unfollowMutation.isPending;
 
-  // Local follow state sync across client sessions / localStorage
-  const [localFollowed, setLocalFollowed] = useState<boolean | null>(null);
-
-  useEffect(() => {
-    try {
-      const stored = localStorage.getItem(`scripd_following_${username.toLowerCase()}`);
-      if (stored !== null) {
-        setLocalFollowed(stored === "true");
-      }
-    } catch {
-      // Safe fallback
-    }
-  }, [username]);
-
-  const isFollowing =
-    localFollowed !== null
-      ? localFollowed
-      : (followStatusQuery.data?.is_following ?? false);
-
   async function handleToggleFollow() {
     const nextState = !isFollowing;
-    setLocalFollowed(nextState);
-
     const viewer = userQuery.data?.username;
 
     try {
-      localStorage.setItem(`scripd_following_${username.toLowerCase()}`, String(nextState));
+      localStorage.setItem(`scripd_following_${normalizedUsername}`, String(nextState));
       if (nextState) {
-        localStorage.setItem(`scripd_has_follower_${username.toLowerCase()}`, "true");
+        localStorage.setItem(`scripd_has_follower_${normalizedUsername}`, "true");
         if (viewer) {
           const listKey = `scripd_user_${viewer.toLowerCase()}_following`;
           const existing: string[] = JSON.parse(localStorage.getItem(listKey) || "[]");
-          if (!existing.includes(username.toLowerCase())) {
-            localStorage.setItem(listKey, JSON.stringify([...existing, username.toLowerCase()]));
+          if (!existing.includes(normalizedUsername)) {
+            localStorage.setItem(listKey, JSON.stringify([...existing, normalizedUsername]));
           }
         }
       } else {
-        localStorage.removeItem(`scripd_has_follower_${username.toLowerCase()}`);
+        localStorage.removeItem(`scripd_has_follower_${normalizedUsername}`);
         if (viewer) {
           const listKey = `scripd_user_${viewer.toLowerCase()}_following`;
           const existing: string[] = JSON.parse(localStorage.getItem(listKey) || "[]");
-          localStorage.setItem(listKey, JSON.stringify(existing.filter((u) => u !== username.toLowerCase())));
+          localStorage.setItem(
+            listKey,
+            JSON.stringify(existing.filter((u) => u !== normalizedUsername)),
+          );
         }
       }
+      notifyStorageChange();
     } catch {
       // Safe ignore
     }
@@ -203,46 +241,15 @@ export function ProfilePage({ username }: { username: string }) {
     );
   }
 
+  const avatarUrl =
+    profile.avatar_url ||
+    (typeof window !== "undefined" && username
+      ? localStorage.getItem(`scripd_user_avatar_${username}`)
+      : "") ||
+    "";
+
   const initial = (profile.display_name || profile.username).charAt(0).toUpperCase();
   const totalBooksCount = statsQuery.data?.books_read ?? readBooks.length;
-
-  const baseFollowers = followStatusQuery.data?.followers_count ?? 0;
-  const [hasLocalFollower, setHasLocalFollower] = useState(false);
-
-  useEffect(() => {
-    try {
-      const isTargetFollowed =
-        localStorage.getItem(`scripd_following_${username.toLowerCase()}`) === "true" ||
-        localStorage.getItem(`scripd_has_follower_${username.toLowerCase()}`) === "true";
-      setHasLocalFollower(isTargetFollowed);
-    } catch {
-      // Safe ignore
-    }
-  }, [username, isFollowing]);
-
-  const followersCount = useMemo(() => {
-    if (baseFollowers > 0) return baseFollowers;
-    if (isFollowing || hasLocalFollower) return 1;
-    return 0;
-  }, [baseFollowers, isFollowing, hasLocalFollower]);
-
-  const baseFollowing = followStatusQuery.data?.following_count ?? 0;
-  const [localFollowingCount, setLocalFollowingCount] = useState(0);
-
-  useEffect(() => {
-    try {
-      const list = localStorage.getItem(`scripd_user_${username.toLowerCase()}_following`);
-      if (list) {
-        setLocalFollowingCount(JSON.parse(list).length);
-      } else {
-        setLocalFollowingCount(0);
-      }
-    } catch {
-      // Safe ignore
-    }
-  }, [username]);
-
-  const followingCount = Math.max(baseFollowing, localFollowingCount);
 
   const joinedDate = (() => {
     if (!profile.created_at) return null;

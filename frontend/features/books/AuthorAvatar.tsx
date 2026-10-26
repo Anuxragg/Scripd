@@ -88,7 +88,7 @@ async function fetchAuthorPhoto(name: string, olid?: string): Promise<string | n
       const photo = data.thumbnail?.source || data.originalimage?.source;
       if (typeof photo === "string" && photo.startsWith("http")) {
         authorPhotoCache.set(normalized, photo);
-        return photo; 
+        return photo;
       }
     }
   } catch {

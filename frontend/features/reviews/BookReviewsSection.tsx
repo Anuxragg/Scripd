@@ -2,15 +2,8 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import {
-  Flame,
-  Heart,
-  Laugh,
-  PartyPopper,
-  Sparkles,
-  ThumbsUp,
-} from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { Flame, Heart, Laugh, PartyPopper, Sparkles, ThumbsUp } from "lucide-react";
 import { Reactions, type Reaction, type ReactionOption } from "@/components/ui/reactions";
 import { useCurrentUser } from "@/features/auth/hooks";
 import {
@@ -27,6 +20,41 @@ import {
 } from "@/features/reviews/hooks";
 import { useCreateRead, useReadEntries } from "@/features/reads/hooks";
 import { ReviewCommentsThread } from "@/features/reviews/ReviewCommentsThread";
+import { useClientStorage, subscribeStorage, notifyStorageChange } from "@/lib/useClientStorage";
+
+let countsCacheRaw = "";
+let countsCacheSnapshot: Record<string, number> = {};
+const emptyCountsSnapshot: Record<string, number> = {};
+
+function getRepliesCountSnapshot(): Record<string, number> {
+  if (typeof window === "undefined") return emptyCountsSnapshot;
+  try {
+    let rawSig = "";
+    const counts: Record<string, number> = {};
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && key.startsWith("scripd_replies_store_")) {
+        const val = localStorage.getItem(key) || "";
+        rawSig += `${key}:${val}|`;
+        try {
+          const parsed = JSON.parse(val);
+          if (Array.isArray(parsed)) {
+            counts[key.replace("scripd_replies_store_", "")] = parsed.length;
+          }
+        } catch {
+          // Safe ignore
+        }
+      }
+    }
+    if (rawSig !== countsCacheRaw) {
+      countsCacheRaw = rawSig;
+      countsCacheSnapshot = counts;
+    }
+    return countsCacheSnapshot;
+  } catch {
+    return countsCacheSnapshot;
+  }
+}
 
 export type ReviewRatingCategory = "Skip" | "Timepass" | "Go for it" | "Perfection";
 
@@ -96,18 +124,10 @@ function ReviewFollowButton({
   const followMutation = useFollowUser(username);
   const unfollowMutation = useUnfollowUser(username);
 
-  const [localFollowed, setLocalFollowed] = useState<boolean | null>(null);
-
-  useEffect(() => {
-    try {
-      const stored = localStorage.getItem(`scripd_following_${username.toLowerCase()}`);
-      if (stored !== null) {
-        setLocalFollowed(stored === "true");
-      }
-    } catch {
-      // Safe fallback
-    }
-  }, [username]);
+  const [localFollowed, setLocalFollowed] = useClientStorage<boolean | null>(
+    `scripd_following_${username.toLowerCase()}`,
+    null,
+  );
 
   const isFollowing =
     localFollowed !== null
@@ -123,12 +143,12 @@ function ReviewFollowButton({
     onFollowChange?.(nextState);
 
     try {
-      localStorage.setItem(`scripd_following_${username.toLowerCase()}`, String(nextState));
       if (nextState) {
         localStorage.setItem(`scripd_has_follower_${username.toLowerCase()}`, "true");
       } else {
         localStorage.removeItem(`scripd_has_follower_${username.toLowerCase()}`);
       }
+      notifyStorageChange();
     } catch {
       // Safe ignore
     }
@@ -161,40 +181,32 @@ function ReviewFollowButton({
   );
 }
 
-export function BookReviewsSection({
-  bookID,
-}: {
-  bookID: string;
-  bookTitle?: string;
-}) {
+export function BookReviewsSection({ bookID }: { bookID: string; bookTitle?: string }) {
   const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(bookID);
 
   const userQuery = useCurrentUser();
   const user = userQuery.data;
   const userProfileQuery = useProfile(user?.username ?? "");
-  const [localAvatar, setLocalAvatar] = useState("");
-
-  useEffect(() => {
-    if (user?.username) {
-      try {
-        const cached = localStorage.getItem(`scripd_user_avatar_${user.username}`);
-        if (cached) setLocalAvatar(cached);
-      } catch {
-        // Safe fallback
-      }
-    }
-  }, [user?.username]);
+  const localAvatar = useSyncExternalStore(
+    subscribeStorage,
+    () =>
+      typeof window !== "undefined" && user?.username
+        ? localStorage.getItem(`scripd_user_avatar_${user.username}`) || ""
+        : "",
+    () => "",
+  );
 
   const avatarUrl = userProfileQuery.data?.avatar_url || localAvatar || "";
   const currentUsername = user?.username ? `@${user.username}` : "@Anuxragg";
   const userDisplayName = user?.display_name || user?.username || "Anuxragg";
-  const initials = (userDisplayName || "AP")
-    .split(" ")
-    .filter(Boolean)
-    .map((n) => n[0])
-    .join("")
-    .slice(0, 2)
-    .toUpperCase() || "AP";
+  const initials =
+    (userDisplayName || "AP")
+      .split(" ")
+      .filter(Boolean)
+      .map((n) => n[0])
+      .join("")
+      .slice(0, 2)
+      .toUpperCase() || "AP";
 
   // Backend queries for real reviews & read entries when bookID is a UUID
   const apiReviewsQuery = useBookReviews(bookID, isUUID);
@@ -274,10 +286,7 @@ export function BookReviewsSection({
   // Close 3-dot menu when clicking outside
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
-      if (
-        menuContainerRef.current &&
-        !menuContainerRef.current.contains(event.target as Node)
-      ) {
+      if (menuContainerRef.current && !menuContainerRef.current.contains(event.target as Node)) {
         setActiveMenuId(null);
         activeButtonRef.current = null;
       }
@@ -290,37 +299,16 @@ export function BookReviewsSection({
 
   // Real local user reviews storage for persistence across reloads / non-UUID books
   const storageKey = `scripd_production_reviews_${bookID}`;
-  const [localReviews, setLocalReviews] = useState<DisplayReview[]>([]);
-  const [isHydrated, setIsHydrated] = useState(false);
-
-  // Load client cached reviews after hydration to eliminate SSR mismatch
-  useEffect(() => {
-    try {
-      const cached = localStorage.getItem(storageKey);
-      if (cached) {
-        setLocalReviews(JSON.parse(cached));
-      }
-    } catch {
-      // Safe fallback
-    }
-    setIsHydrated(true);
-  }, [storageKey]);
-
-  // Persist locally created reviews
-  useEffect(() => {
-    if (isHydrated) {
-      try {
-        localStorage.setItem(storageKey, JSON.stringify(localReviews));
-      } catch {
-        // Safe ignore
-      }
-    }
-  }, [localReviews, storageKey, isHydrated]);
+  const [localReviews, setLocalReviews] = useClientStorage<DisplayReview[]>(storageKey, []);
+  const isHydrated = useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false,
+  );
 
   // Combine real backend reviews with local user reviews (NO hardcoded seed data!)
   const allReviews = useMemo(() => {
-    const backendItems =
-      apiReviewsQuery.data?.pages.flatMap((page) => page.data) ?? [];
+    const backendItems = apiReviewsQuery.data?.pages.flatMap((page) => page.data) ?? [];
 
     const mappedBackend: DisplayReview[] = backendItems.map((r) => ({
       id: r.id,
@@ -363,45 +351,29 @@ export function BookReviewsSection({
 
   // Replies Thread & Comments State
   const [openRepliesIds, setOpenRepliesIds] = useState<string[]>([]);
-  const [commentCounts, setCommentCounts] = useState<Record<string, number>>({});
+  const persistentCommentCounts = useSyncExternalStore(
+    subscribeStorage,
+    getRepliesCountSnapshot,
+    () => emptyCountsSnapshot,
+  );
+  const [liveCounts, setLiveCounts] = useState<Record<string, number>>({});
+  const commentCounts = useMemo(
+    () => ({ ...persistentCommentCounts, ...liveCounts }),
+    [persistentCommentCounts, liveCounts],
+  );
 
   function toggleReplies(id: string) {
     setOpenRepliesIds((prev) =>
-      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id],
     );
   }
 
   const handleCommentsCountChange = useCallback((reviewId: string, count: number) => {
-    setCommentCounts((prev) => {
+    setLiveCounts((prev) => {
       if (prev[reviewId] === count) return prev;
       return { ...prev, [reviewId]: count };
     });
   }, []);
-
-  // Load persistent reply counts
-  useEffect(() => {
-    if (isHydrated) {
-      try {
-        const counts: Record<string, number> = {};
-        for (let i = 0; i < localStorage.length; i++) {
-          const key = localStorage.key(i);
-          if (key && key.startsWith("scripd_replies_store_")) {
-            const rId = key.replace("scripd_replies_store_", "");
-            const raw = localStorage.getItem(key);
-            if (raw) {
-              const parsed = JSON.parse(raw);
-              if (Array.isArray(parsed)) {
-                counts[rId] = parsed.length;
-              }
-            }
-          }
-        }
-        setCommentCounts(counts);
-      } catch {
-        // Safe ignore
-      }
-    }
-  }, [isHydrated]);
 
   function toggleExpand(id: string) {
     setExpandedIds((prev) =>
@@ -414,9 +386,7 @@ export function BookReviewsSection({
     setLocalReviews((prev) => {
       const exists = prev.some((r) => r.id === id);
       if (exists) {
-        return prev.map((r) =>
-          r.id === id ? { ...r, reactions: sanitized } : r,
-        );
+        return prev.map((r) => (r.id === id ? { ...r, reactions: sanitized } : r));
       }
       const backendTarget = allReviews.find((r) => r.id === id);
       if (backendTarget) {
@@ -452,7 +422,9 @@ export function BookReviewsSection({
       const backendTarget = allReviews.find((r) => r.id === id);
       if (backendTarget) {
         const nextLiked = !backendTarget.isLiked;
-        const nextCount = nextLiked ? backendTarget.likes + 1 : Math.max(0, backendTarget.likes - 1);
+        const nextCount = nextLiked
+          ? backendTarget.likes + 1
+          : Math.max(0, backendTarget.likes - 1);
         return [
           ...prev,
           {
@@ -607,7 +579,7 @@ export function BookReviewsSection({
     }
   }
 
-  function handleShareCard(review: DisplayReview) {
+  function handleShareCard() {
     setActiveMenuId(null);
     const url = typeof window !== "undefined" ? window.location.href : "";
     if (navigator.clipboard) {
@@ -623,7 +595,9 @@ export function BookReviewsSection({
     if (followingOnly) {
       list = list.filter((r) => {
         if (typeof window !== "undefined") {
-          const stored = localStorage.getItem(`scripd_following_${r.author.username.toLowerCase()}`);
+          const stored = localStorage.getItem(
+            `scripd_following_${r.author.username.toLowerCase()}`,
+          );
           if (stored !== null) return stored === "true";
         }
         return r.isFollowing;
@@ -678,10 +652,7 @@ export function BookReviewsSection({
                 {currentUsername}
               </span>
               {!user && (
-                <Link
-                  href="/login"
-                  className="text-[11px] text-[#40bcf4] hover:underline block"
-                >
+                <Link href="/login" className="text-[11px] text-[#40bcf4] hover:underline block">
                   Sign in to sync with your profile
                 </Link>
               )}
@@ -809,16 +780,15 @@ export function BookReviewsSection({
               const isExpanded = expandedIds.includes(review.id);
               const isLongText = review.body.length > 220;
               const displayText =
-                isLongText && !isExpanded
-                  ? `${review.body.slice(0, 220)}...`
-                  : review.body;
+                isLongText && !isExpanded ? `${review.body.slice(0, 220)}...` : review.body;
 
               const isSpoilerMasked = review.containsSpoilers && !showSpoilers;
 
               const isAuthor = Boolean(
                 (user && review.author.username.toLowerCase() === user.username.toLowerCase()) ||
                   review.author.username === "You" ||
-                  review.author.username.toLowerCase() === currentUsername.replace("@", "").toLowerCase(),
+                  review.author.username.toLowerCase() ===
+                    currentUsername.replace("@", "").toLowerCase(),
               );
 
               const isEditingThis = editingReviewId === review.id;
@@ -842,9 +812,7 @@ export function BookReviewsSection({
                             className="h-full w-full object-cover"
                           />
                         ) : (
-                          <span>
-                            {review.author.display_name.slice(0, 2).toUpperCase()}
-                          </span>
+                          <span>{review.author.display_name.slice(0, 2).toUpperCase()}</span>
                         )}
                       </div>
                       <div>
@@ -871,8 +839,8 @@ export function BookReviewsSection({
                               r.author.username.toLowerCase() ===
                               review.author.username.toLowerCase()
                                 ? { ...r, isFollowing: following }
-                                : r
-                            )
+                                : r,
+                            ),
                           );
                         }}
                       />
@@ -928,7 +896,10 @@ export function BookReviewsSection({
                       <div className="mt-3.5">
                         {isSpoilerMasked ? (
                           <div className="rounded-xl border border-amber-500/20 bg-amber-500/10 p-3.5 text-xs text-amber-300">
-                            <span>⚠️ This review contains spoilers. Toggle &ldquo;Show Spoilers&rdquo; above to read.</span>
+                            <span>
+                              ⚠️ This review contains spoilers. Toggle &ldquo;Show Spoilers&rdquo;
+                              above to read.
+                            </span>
                           </div>
                         ) : (
                           <p className="text-sm text-zinc-300 leading-relaxed font-normal whitespace-pre-line">
@@ -970,7 +941,9 @@ export function BookReviewsSection({
                             {review.likes > 0 && (
                               <span
                                 className={`tabular-nums text-xs ${
-                                  review.isLiked ? "font-bold text-white" : "font-medium text-zinc-400"
+                                  review.isLiked
+                                    ? "font-bold text-white"
+                                    : "font-medium text-zinc-400"
                                 }`}
                               >
                                 {review.likes}
@@ -996,7 +969,9 @@ export function BookReviewsSection({
                                 ? "bg-[#181d26] border-white/25 text-white"
                                 : "bg-white/5 border-white/10 text-zinc-400 hover:text-white hover:bg-white/10 hover:border-white/20"
                             }`}
-                            title={openRepliesIds.includes(review.id) ? "Hide replies" : "Leave a reply"}
+                            title={
+                              openRepliesIds.includes(review.id) ? "Hide replies" : "Leave a reply"
+                            }
                           >
                             <svg
                               className="h-4 w-4"
@@ -1030,11 +1005,7 @@ export function BookReviewsSection({
                             className="flex items-center justify-center p-1.5 text-zinc-400 hover:text-white transition rounded-lg hover:bg-white/5 cursor-pointer"
                             title="More options"
                           >
-                            <svg
-                              className="h-5 w-5"
-                              viewBox="0 0 24 24"
-                              fill="currentColor"
-                            >
+                            <svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
                               <circle cx="5" cy="12" r="1.5" />
                               <circle cx="12" cy="12" r="1.5" />
                               <circle cx="19" cy="12" r="1.5" />
@@ -1073,7 +1044,7 @@ export function BookReviewsSection({
 
                               <button
                                 type="button"
-                                onClick={() => handleShareCard(review)}
+                                onClick={() => handleShareCard()}
                                 className="flex w-full items-center gap-3 px-3 py-2 text-xs font-semibold text-zinc-300 hover:text-white hover:bg-white/5 rounded-xl transition cursor-pointer text-left"
                               >
                                 <svg
@@ -1083,7 +1054,14 @@ export function BookReviewsSection({
                                   stroke="currentColor"
                                   strokeWidth={1.8}
                                 >
-                                  <rect x="3" y="3" width="18" height="18" rx="2" strokeWidth={1.8} />
+                                  <rect
+                                    x="3"
+                                    y="3"
+                                    width="18"
+                                    height="18"
+                                    rx="2"
+                                    strokeWidth={1.8}
+                                  />
                                   <circle cx="8.5" cy="8.5" r="1.5" />
                                   <path d="M21 15l-5-5L5 21" strokeWidth={1.8} />
                                 </svg>
@@ -1144,7 +1122,9 @@ export function BookReviewsSection({
                       {openRepliesIds.includes(review.id) && (
                         <ReviewCommentsThread
                           reviewID={review.id}
-                          isBackendUUID={/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(review.id)}
+                          isBackendUUID={/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+                            review.id,
+                          )}
                           likesCount={review.likes}
                           reviewCreatedAt={review.createdAt}
                           currentUser={user}

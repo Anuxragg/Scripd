@@ -171,11 +171,7 @@ export function SiteHeader({ theme = "light" }: { theme?: "dark" | "light" }) {
               title="Activity Feed"
               aria-label="Activity Feed"
             >
-              <svg
-                className="h-5 w-5 sm:h-5.25 sm:w-5.25"
-                viewBox="0 0 24 24"
-                fill="currentColor"
-              >
+              <svg className="h-5 w-5 sm:h-5.25 sm:w-5.25" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M13 2L3 14h8l-1 8 11-12h-8l1-8z" />
               </svg>
             </Link>

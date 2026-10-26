@@ -25,4 +25,3 @@ export const motionTokens = {
     item: 0.035,
   },
 } as const;
-

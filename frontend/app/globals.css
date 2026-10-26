@@ -285,12 +285,15 @@ body {
   font-size: 15px;
   font-weight: 500;
   line-height: 20px;
-  color: rgb(119, 119, 119);
-  transition: color 150ms ease;
+  color: #ffffff !important;
+  transition:
+    opacity 150ms ease,
+    color 150ms ease;
 }
 
 .navbar-option:hover {
-  color: #ffffff;
+  color: #ffffff !important;
+  opacity: 0.8;
 }
 
 .notification-empty-title {
@@ -307,4 +310,51 @@ body {
   font-weight: 400;
   line-height: 16px;
   color: rgb(112, 112, 112);
+}
+
+.book-detail-title {
+  font-family: Inter, Inter, sans-serif, Inter, sans-serif;
+  font-size: 28px;
+  font-weight: 600;
+  line-height: 28px;
+  color: rgb(255, 255, 255);
+}
+
+.book-overview-heading {
+  font-family: Inter, sans-serif;
+  font-size: 20px;
+  font-weight: 500;
+  line-height: 28px;
+  color: rgb(226, 226, 226);
+}
+
+.book-overview-para {
+  font-family: Inter, Inter, sans-serif, Inter, sans-serif;
+  font-size: 16px;
+  font-weight: 400;
+  line-height: 26px;
+  color: rgb(179, 179, 179);
+}
+
+.site-capsule {
+  font-family: Inter, Inter, sans-serif, Inter, sans-serif;
+  font-size: 15px;
+  font-weight: 500;
+  line-height: 20px;
+  color: rgb(225, 230, 240);
+  background-color: #1a1d24;
+  border-radius: 10px;
+  padding: 8px 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition:
+    background-color 150ms ease,
+    color 150ms ease,
+    border-color 150ms ease;
+}
+
+.site-capsule:hover {
+  background-color: #222630;
+  color: #ffffff;
 }

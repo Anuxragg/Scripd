@@ -88,11 +88,11 @@ async function fetchAuthorPhoto(name: string, olid?: string): Promise<string | n
       const photo = data.thumbnail?.source || data.originalimage?.source;
       if (typeof photo === "string" && photo.startsWith("http")) {
         authorPhotoCache.set(normalized, photo);
-        return photo;
+        return photo; 
       }
     }
   } catch {
-    // Graceful fallback to initials
+    // Graceful fallback to initial
   }
 
   authorPhotoCache.set(normalized, null);
@@ -138,7 +138,7 @@ export function AuthorAvatar({
 
   return (
     <div
-      className={`relative h-20 w-20 sm:h-24 sm:w-24 rounded-full overflow-hidden border border-white/15 bg-gradient-to-tr from-[#161a24] to-[#252c3c] flex items-center justify-center shadow-md group-hover:border-[#9333ea]/60 transition shrink-0 ${className}`}
+      className={`relative h-20 w-20 sm:h-24 sm:w-24 rounded-full overflow-hidden border border-white/15 bg-linear-to-tr from-[#161a24] to-[#252c3c] flex items-center justify-center shadow-md group-hover:border-[#9333ea]/60 transition shrink-0 ${className}`}
     >
       {photoUrl && !imgFailed ? (
         <Image

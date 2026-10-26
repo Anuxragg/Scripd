@@ -161,28 +161,75 @@ export function BookDetailPage({
   );
 
   const [localStatus, setLocalStatus] = useState<"none" | "read" | "want_to_read">("none");
+  const [localRating, setLocalRating] = useState<number | null>(null);
+  const [hoverRating, setHoverRating] = useState<number | null>(null);
 
-  const isRead = activeEntry?.status === "read" || localStatus === "read";
+  const activeRating = activeEntry?.rating ?? localRating;
+  const displayRating = hoverRating !== null ? hoverRating : (activeRating ?? 0);
+
   const isWantToRead = activeEntry?.status === "want_to_read" || localStatus === "want_to_read";
   const isBusy = createMutation.isPending || updateMutation.isPending || deleteMutation.isPending;
 
-  function handleMarkAsRead() {
+  function handleRate(ratingValue: number) {
     if (!userQuery.data) {
-      setLocalStatus((prev) => (prev === "read" ? "none" : "read"));
+      if (localRating === ratingValue) {
+        setLocalRating(null);
+        setLocalStatus("none");
+      } else {
+        setLocalRating(ratingValue);
+        setLocalStatus("read");
+      }
       return;
     }
+
     if (isUUID) {
       if (activeEntry) {
-        updateMutation.mutate({
-          entryID: activeEntry.id,
-          input: { status: isRead ? "reading" : "read" },
-        });
+        if (activeEntry.rating === ratingValue) {
+          updateMutation.mutate({
+            entryID: activeEntry.id,
+            input: { status: activeEntry.status, rating: undefined },
+          });
+          setLocalRating(null);
+        } else {
+          updateMutation.mutate({
+            entryID: activeEntry.id,
+            input: { status: "read", rating: ratingValue },
+          });
+          setLocalRating(ratingValue);
+          setLocalStatus("read");
+        }
       } else {
-        createMutation.mutate({ book_id: bookID, status: "read" });
+        createMutation.mutate({
+          book_id: bookID,
+          status: "read",
+          rating: ratingValue,
+        });
+        setLocalRating(ratingValue);
+        setLocalStatus("read");
       }
     } else {
-      setLocalStatus((prev) => (prev === "read" ? "none" : "read"));
+      if (localRating === ratingValue) {
+        setLocalRating(null);
+        setLocalStatus("none");
+      } else {
+        setLocalRating(ratingValue);
+        setLocalStatus("read");
+      }
     }
+  }
+
+  function handleClearRating() {
+    if (!userQuery.data) {
+      setLocalRating(null);
+      return;
+    }
+    if (isUUID && activeEntry) {
+      updateMutation.mutate({
+        entryID: activeEntry.id,
+        input: { status: activeEntry.status, rating: undefined },
+      });
+    }
+    setLocalRating(null);
   }
 
   function handleWantToRead() {
@@ -290,21 +337,23 @@ export function BookDetailPage({
   if (bookQuery.isLoading && !apiBook && !knownMatch) {
     return (
       <main className="min-h-screen bg-[#0a0c10] text-white selection:bg-[#9333ea]/30 selection:text-white pb-24">
-        <div className="relative w-full h-[360px] sm:h-[430px] md:h-[490px] overflow-hidden bg-[#090b0e] animate-pulse">
-          <div className="absolute inset-0 bg-gradient-to-t from-[#0a0c10] via-[#0a0c10]/60 to-[#0a0c10]/30" />
-        </div>
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="relative -mt-28 sm:-mt-36 md:-mt-44 z-20 flex flex-col md:flex-row items-start gap-6 md:gap-10">
-            <div className="shrink-0 w-36 sm:w-48 md:w-56 aspect-[2/3] rounded-2xl overflow-hidden bg-[#161922] border border-white/10 animate-pulse shadow-2xl" />
-            <div className="flex-1 min-w-0 pt-2 md:pt-14 w-full space-y-4">
-              <div className="h-4 w-32 bg-white/10 rounded-full animate-pulse" />
-              <div className="h-10 w-3/4 max-w-md bg-white/10 rounded-xl animate-pulse" />
-              <div className="h-4 w-1/2 bg-white/5 rounded-full animate-pulse" />
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-4">
-                {Array.from({ length: 4 }).map((_, i) => (
-                  <div key={i} className="h-14 bg-white/5 rounded-xl animate-pulse" />
-                ))}
+        <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8 pt-6 sm:pt-8 md:pt-10">
+          <div className="grid grid-cols-1 lg:grid-cols-[1fr_280px] gap-10 items-start">
+            <div className="flex flex-col sm:flex-row items-start gap-6 sm:gap-8">
+              <div className="shrink-0 w-36 sm:w-44 md:w-48 aspect-[2/3] rounded-2xl overflow-hidden bg-[#161922] border border-white/10 animate-pulse shadow-2xl" />
+              <div className="flex-1 min-w-0 w-full space-y-4">
+                <div className="h-4 w-32 bg-white/10 rounded-full animate-pulse" />
+                <div className="h-10 w-3/4 max-w-md bg-white/10 rounded-xl animate-pulse" />
+                <div className="h-4 w-1/2 bg-white/5 rounded-full animate-pulse" />
+                <div className="space-y-2 pt-4 max-w-2xl">
+                  <div className="h-4 w-full bg-white/5 rounded-full animate-pulse" />
+                  <div className="h-4 w-5/6 bg-white/5 rounded-full animate-pulse" />
+                  <div className="h-4 w-2/3 bg-white/5 rounded-full animate-pulse" />
+                </div>
               </div>
+            </div>
+            <div className="w-full max-w-[280px]">
+              <div className="h-40 w-full bg-white/5 rounded-2xl animate-pulse" />
             </div>
           </div>
         </div>
@@ -313,217 +362,218 @@ export function BookDetailPage({
   }
 
   const openLibraryKey = apiBook?.open_library_key || knownMatch?.openLibraryKey || "OL-CATALOG";
-  const openLibraryUrl =
-    apiBook?.open_library_url || knownMatch?.openLibraryUrl || "https://openlibrary.org";
   const isbnDisplay = apiBook?.isbn13 || knownMatch?.isbn13;
 
   return (
     <main className="min-h-screen bg-[#0a0c10] text-white selection:bg-[#9333ea]/30 selection:text-white pb-36">
-      {/* 1. Cinematic Backdrop Banner */}
-      <div className="relative w-full h-[360px] sm:h-[430px] md:h-[490px] overflow-hidden bg-[#090b0e]">
-        {coverURL ? (
-          <Image
-            src={coverURL}
-            alt=""
-            fill
-            priority
-            unoptimized
-            className="object-cover object-center blur-2xl opacity-30 scale-125"
-          />
-        ) : (
-          <div className="absolute inset-0 bg-gradient-to-tr from-[#161224] via-[#0e121a] to-[#0a0d14]" />
-        )}
-
-        {/* Ambient Dark Gradient Overlays */}
-        <div className="absolute inset-0 bg-gradient-to-t from-[#0a0c10] via-[#0a0c10]/60 to-[#0a0c10]/30" />
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(0,0,0,0)_0%,rgba(10,12,16,0.85)_100%)]" />
-
-        {/* Center Book Preview / Sample Circle Button */}
-        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-          <a
-            href={openLibraryUrl}
-            target="_blank"
-            rel="noreferrer"
-            aria-label="Preview book on Open Library"
-            className="pointer-events-auto group flex h-14 w-14 sm:h-16 sm:w-16 items-center justify-center rounded-full bg-black/60 border border-white/20 backdrop-blur-md text-white transition hover:scale-105 hover:bg-black/85 hover:border-white/40 shadow-2xl shadow-black/80 cursor-pointer"
-          >
-            <svg
-              className="h-6 w-6 fill-white ml-1 transition group-hover:scale-110"
-              viewBox="0 0 24 24"
-            >
-              <polygon points="5 3 19 12 5 21 5 3" />
-            </svg>
-          </a>
-        </div>
-      </div>
-
-      {/* 2. Overlapping Hero Content: Book Cover + Details & Actions */}
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <div className="relative -mt-28 sm:-mt-36 md:-mt-44 z-20 flex flex-col md:flex-row items-start gap-6 md:gap-10">
-          {/* Left: Book Cover Poster */}
-          <div className="shrink-0 w-36 sm:w-48 md:w-56 aspect-[2/3] rounded-2xl overflow-hidden shadow-2xl shadow-black/90 border border-white/10 ring-1 ring-black/80 bg-[#161922]">
-            <BookCover className="h-full w-full object-cover" coverURL={coverURL} title={title} />
-          </div>
-
-          {/* Right: Meta, Title, Details Grid, Action Buttons */}
-          <div className="flex-1 min-w-0 pt-2 md:pt-14 w-full">
-            {/* Type • Year • Pages */}
-            <div className="flex items-center gap-2 text-xs sm:text-sm font-medium text-zinc-400">
-              <span>Book</span>
-              <span className="text-zinc-600">•</span>
-              <span>{publishedYear}</span>
-              <span className="text-zinc-600">•</span>
-              <span>{pages}</span>
+      {/* Hero Content: Book Cover + Details & Actions */}
+      <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8 pt-6 sm:pt-8 md:pt-10">
+        <div className="grid grid-cols-1 lg:grid-cols-[1fr_280px] gap-10 items-start">
+          {/* Left Column: Book Cover Poster + Meta, Title, Overview */}
+          <div className="flex flex-col sm:flex-row items-start gap-6 sm:gap-8">
+            {/* Book Cover Poster */}
+            <div className="shrink-0 w-36 sm:w-44 md:w-48 aspect-[2/3] rounded-2xl overflow-hidden shadow-2xl shadow-black/90 border border-white/10 ring-1 ring-black/80 bg-[#161922]">
+              <BookCover className="h-full w-full object-cover" coverURL={coverURL} title={title} />
             </div>
 
-            {/* Big Bold Title */}
-            <h1 className="mt-1.5 text-2xl sm:text-3xl md:text-4xl lg:text-[40px] font-extrabold tracking-tight text-white leading-tight">
-              {title}
-            </h1>
-
-            {subtitle && (
-              <p className="mt-1 text-sm sm:text-base text-zinc-400 font-medium">{subtitle}</p>
-            )}
-
-            {/* 4 Details Columns - Real Book Attributes */}
-            <div className="mt-5 grid grid-cols-2 sm:grid-cols-4 gap-4 py-2 border-y border-white/5 sm:border-y-0">
-              <div>
-                <span className="text-[11px] sm:text-xs font-semibold text-zinc-400 uppercase tracking-wider block">
-                  Written By
-                </span>
-                <span
-                  className="text-xs sm:text-sm font-bold text-white mt-1 block truncate"
-                  title={authorNames}
-                >
-                  {authorNames}
-                </span>
+            {/* Meta, Title, Overview */}
+            <div className="flex-1 min-w-0 w-full">
+              {/* Type • Year • Pages */}
+              <div className="flex items-center gap-2 text-xs sm:text-sm font-medium text-zinc-400">
+                <span>Book</span>
+                <span className="text-zinc-600">•</span>
+                <span>{publishedYear}</span>
+                <span className="text-zinc-600">•</span>
+                <span>{pages}</span>
               </div>
-              <div>
-                <span className="text-[11px] sm:text-xs font-semibold text-zinc-400 uppercase tracking-wider block">
-                  Publisher
-                </span>
-                <span
-                  className="text-xs sm:text-sm font-bold text-white mt-1 block truncate"
-                  title={publisher}
-                >
-                  {publisher}
-                </span>
-              </div>
-              <div>
-                <span className="text-[11px] sm:text-xs font-semibold text-zinc-400 uppercase tracking-wider block">
-                  Language
-                </span>
-                <span className="text-xs sm:text-sm font-bold text-white mt-1 block truncate">
-                  {language}
-                </span>
-              </div>
-              <div>
-                <span className="text-[11px] sm:text-xs font-semibold text-zinc-400 uppercase tracking-wider block">
-                  Edition
-                </span>
-                <span className="text-xs sm:text-sm font-bold text-white mt-1 block truncate">
-                  {isbnDisplay ? `ISBN-${isbnDisplay.slice(-4)}` : "Standard"}
-                </span>
-              </div>
-            </div>
 
-            {/* Action Buttons: Mark as Read, Collections, Want to Read */}
-            <div className="mt-6 flex flex-wrap items-center gap-3">
-              {/* Primary Vibrant Purple Button */}
-              <button
-                type="button"
-                disabled={isBusy}
-                onClick={handleMarkAsRead}
-                className="rounded-full bg-[#9333ea] hover:bg-[#822cd6] active:scale-95 text-white font-semibold text-sm px-6 py-2.5 flex items-center justify-center gap-2 shadow-lg shadow-purple-600/30 transition cursor-pointer disabled:opacity-60"
-              >
-                <svg
-                  className="h-4.5 w-4.5"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth={2}
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" />
-                  <circle cx="12" cy="12" r="3" />
-                </svg>
-                <span>{isRead ? "Marked as Read ✓" : "Mark as Read"}</span>
-              </button>
+              {/* Book Title */}
+              <h1 className="mt-1.5 book-detail-title text-[28px] font-semibold leading-[28px] text-white">
+                {title}
+              </h1>
 
-              {/* Collections Button */}
-              <button
-                type="button"
-                onClick={() => setCollectionsModalOpen((prev) => !prev)}
-                className="rounded-full border border-white/10 bg-[#161922] hover:bg-[#202533] active:scale-95 text-white font-medium text-sm px-5 py-2.5 flex items-center justify-center gap-2 transition cursor-pointer"
-              >
-                <svg
-                  className="h-4 w-4 text-zinc-300"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth={2}
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z" />
-                </svg>
-                <span>Collections</span>
-              </button>
-
-              {/* Want to Read Button */}
-              <button
-                type="button"
-                disabled={isBusy}
-                onClick={handleWantToRead}
-                className="rounded-full border border-white/10 bg-[#161922] hover:bg-[#202533] active:scale-95 text-white font-medium text-sm px-5 py-2.5 flex items-center justify-center gap-2 transition cursor-pointer disabled:opacity-60"
-              >
-                <svg
-                  className="h-4 w-4 text-zinc-300"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth={2}
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <circle cx="12" cy="12" r="10" />
-                  <polyline points="12 6 12 12 16 14" />
-                </svg>
-                <span>{isWantToRead ? "On Reading List" : "Want to Read"}</span>
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* 3. Main Content Sections Grid (Overview, Author / Contributors, Reviews, Sidebar) */}
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 mt-14 pb-24">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-10 items-start">
-          {/* Left Column (Overview, Authors, Reviews) */}
-          <div className="lg:col-span-2 space-y-12">
-            {/* Overview Section - Real Writer Synopsis */}
-            <section className="space-y-4">
-              <h2 className="text-xl sm:text-2xl font-bold text-white tracking-tight">Overview</h2>
-              <p className="text-sm sm:text-base text-zinc-300 leading-relaxed max-w-3xl font-normal">
-                {description}
-              </p>
-
-              {/* Dynamic Genre / Subject Pills */}
-              {tags.length > 0 && (
-                <div className="flex flex-wrap gap-2 pt-2">
-                  {tags.map((tag) => (
-                    <span
-                      key={tag}
-                      className="rounded-full border border-white/10 bg-[#161922] px-4 py-1.5 text-xs font-medium text-zinc-300 hover:text-white hover:border-white/20 transition cursor-default"
-                    >
-                      {tag}
-                    </span>
-                  ))}
-                </div>
+              {subtitle && (
+                <p className="mt-1 text-sm sm:text-base text-zinc-400 font-medium">{subtitle}</p>
               )}
-            </section>
 
+              {/* Overview Heading, Synopsis Paragraph & Capsules */}
+              <div className="mt-5 space-y-3">
+                <h2 className="book-overview-heading text-[20px] font-medium leading-[28px] text-[rgb(226,226,226)] tracking-normal">
+                  Overview
+                </h2>
+                <p className="book-overview-para text-[16px] font-normal leading-[26px] text-[rgb(179,179,179)]">
+                  {description}
+                </p>
+
+                {/* Dynamic Genre / Subject Capsules */}
+                {tags.length > 0 && (
+                  <div className="flex flex-wrap gap-2.5 pt-1.5">
+                    {tags.map((tag) => (
+                      <span
+                        key={tag}
+                        className="site-capsule bg-[#1a1d24] hover:bg-[#222630] border border-white/5 text-[rgb(225,230,240)] hover:text-white text-[15px] font-medium leading-[20px] px-4 py-2 rounded-xl transition cursor-default"
+                      >
+                        {tag}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Right Column: Mark as Read & Action Box */}
+          <div className="w-full max-w-[280px]">
+            <div className="w-full rounded-2xl border border-[#4d5c6b] bg-[#5B6C7D] p-5 shadow-xl space-y-3.5">
+              {/* 5-Star Letterboxd Rating Panel */}
+              <div
+                onMouseLeave={() => setHoverRating(null)}
+                className="w-full flex flex-col items-center justify-center gap-1.5 pt-0.5 pb-0.5"
+              >
+                {/* Centered 'Rate' label exactly like Letterboxd (Image 1 & Image 3) */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (activeRating) handleClearRating();
+                  }}
+                  className={`text-xs sm:text-sm font-semibold tracking-wide transition select-none ${
+                    activeRating
+                      ? "text-[#00e054] hover:text-white cursor-pointer"
+                      : "text-white/90 cursor-default"
+                  }`}
+                  title={activeRating ? "Click to clear rating" : undefined}
+                >
+                  Rate
+                </button>
+
+                {/* 5 Solid Stars Row */}
+                <div className="flex items-center justify-center -space-x-0.5 sm:-space-x-1 py-1 w-full">
+                  {[1, 2, 3, 4, 5].map((starIndex) => {
+                    const isFull = displayRating >= starIndex;
+                    const isHalf = !isFull && displayRating >= starIndex - 0.5;
+
+                    return (
+                      <div
+                        key={starIndex}
+                        className="relative flex items-center justify-center group cursor-pointer"
+                      >
+                        {/* Invisible Left Half Click/Hover Target (0.5 star) */}
+                        <button
+                          type="button"
+                          disabled={isBusy}
+                          aria-label={`Rate ${starIndex - 0.5} stars`}
+                          onMouseEnter={() => setHoverRating(starIndex - 0.5)}
+                          onClick={() => handleRate(starIndex - 0.5)}
+                          className="absolute left-0 top-0 w-1/2 h-full z-10 cursor-pointer disabled:cursor-not-allowed"
+                        />
+                        {/* Invisible Right Half Click/Hover Target (1.0 star) */}
+                        <button
+                          type="button"
+                          disabled={isBusy}
+                          aria-label={`Rate ${starIndex} stars`}
+                          onMouseEnter={() => setHoverRating(starIndex)}
+                          onClick={() => handleRate(starIndex)}
+                          className="absolute right-0 top-0 w-1/2 h-full z-10 cursor-pointer disabled:cursor-not-allowed"
+                        />
+
+                        {/* Star SVG: solid dark silhouette base (#334455), clean solid green fill (#00e054), zero border on half-selected */}
+                        <svg
+                          className="w-9 h-9 sm:w-10 sm:h-10 pointer-events-none transition-colors"
+                          viewBox="0 0 24 24"
+                        >
+                          <defs>
+                            <clipPath id={`star-left-half-${starIndex}`}>
+                              <rect x="0" y="0" width="12" height="24" />
+                            </clipPath>
+                          </defs>
+
+                          {/* Base solid dark silhouette star (#334455) */}
+                          <path
+                            fill="#334455"
+                            d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"
+                          />
+
+                          {/* Half-star: left half solid green (#00e054), right half remains #334455 with NO border */}
+                          {isHalf && (
+                            <path
+                              fill="#00e054"
+                              clipPath={`url(#star-left-half-${starIndex})`}
+                              d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"
+                            />
+                          )}
+
+                          {/* Full-star: solid green (#00e054) */}
+                          {isFull && (
+                            <path
+                              fill="#00e054"
+                              d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"
+                            />
+                          )}
+                        </svg>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Sub-Actions: Collections & Want to Read stacked vertically inside the #5B6C7D Box */}
+              <div className="pt-2 border-t border-[#4d5c6b]/60 space-y-2">
+                {/* Collections Button */}
+                <button
+                  type="button"
+                  onClick={() => setCollectionsModalOpen((prev) => !prev)}
+                  className="w-full rounded-xl border border-[#394653] bg-[#3f4d5c] hover:bg-[#34414e] active:scale-95 text-white font-medium text-xs sm:text-sm px-4 py-2.5 flex items-center justify-center gap-2.5 transition cursor-pointer shadow-sm"
+                >
+                  <svg
+                    className="h-4 w-4 text-zinc-300"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth={2}
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z" />
+                  </svg>
+                  <span>Collections</span>
+                </button>
+
+                {/* Want to Read Button */}
+                <button
+                  type="button"
+                  disabled={isBusy}
+                  onClick={handleWantToRead}
+                  className={`w-full rounded-xl border ${
+                    isWantToRead
+                      ? "bg-amber-500/25 text-amber-200 border-amber-400/50"
+                      : "bg-[#3f4d5c] text-white hover:bg-[#34414e] border-[#394653]"
+                  } active:scale-95 font-medium text-xs sm:text-sm px-4 py-2.5 flex items-center justify-center gap-2.5 transition cursor-pointer disabled:opacity-60 shadow-sm`}
+                >
+                  <svg
+                    className="h-4 w-4 text-zinc-300"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth={2}
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <circle cx="12" cy="12" r="10" />
+                    <polyline points="12 6 12 12 16 14" />
+                  </svg>
+                  <span>{isWantToRead ? "On Reading List" : "Want to Read"}</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* 3. Main Content Sections Grid (Writer & Contributors, Publishing, Reviews, Sidebar) */}
+      <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8 mt-14 pb-24">
+        <div className="grid grid-cols-1 lg:grid-cols-[1fr_280px] gap-10 items-start">
+          {/* Left Column (Authors, Details, Reviews) */}
+          <div className="space-y-12">
             {/* Writer & Contributors Section - Real Author(s) */}
             <section>
               <h2 className="text-xl sm:text-2xl font-bold text-white tracking-tight mb-5">
@@ -567,14 +617,28 @@ export function BookDetailPage({
                   </span>
                 </div>
                 <div className="rounded-xl border border-white/5 bg-[#12151c] p-3.5">
+                  <span className="text-zinc-500 block text-xs">Publisher</span>
+                  <span className="font-semibold text-white mt-1 block truncate">{publisher}</span>
+                </div>
+                <div className="rounded-xl border border-white/5 bg-[#12151c] p-3.5">
+                  <span className="text-zinc-500 block text-xs">Language</span>
+                  <span className="font-semibold text-white mt-1 block truncate">{language}</span>
+                </div>
+                <div className="rounded-xl border border-white/5 bg-[#12151c] p-3.5">
+                  <span className="text-zinc-500 block text-xs">Edition</span>
+                  <span className="font-semibold text-white mt-1 block truncate">
+                    {isbnDisplay ? `ISBN-${isbnDisplay.slice(-4)}` : "Standard"}
+                  </span>
+                </div>
+                <div className="rounded-xl border border-white/5 bg-[#12151c] p-3.5">
+                  <span className="text-zinc-500 block text-xs">Length</span>
+                  <span className="font-semibold text-white mt-1 block truncate">{pages}</span>
+                </div>
+                <div className="rounded-xl border border-white/5 bg-[#12151c] p-3.5">
                   <span className="text-zinc-500 block text-xs">Catalog Key</span>
                   <span className="font-semibold text-white mt-1 block truncate font-mono text-xs">
                     {openLibraryKey}
                   </span>
-                </div>
-                <div className="rounded-xl border border-white/5 bg-[#12151c] p-3.5">
-                  <span className="text-zinc-500 block text-xs">Publisher</span>
-                  <span className="font-semibold text-white mt-1 block truncate">{publisher}</span>
                 </div>
               </div>
             </section>
@@ -585,46 +649,16 @@ export function BookDetailPage({
             </section>
           </div>
 
-          {/* Right Column (Where to Read, Users' Collections) */}
-          <div className="lg:col-span-1 space-y-6">
-            {/* Where to Read Card */}
-            <div className="rounded-2xl border border-white/10 bg-[#12151c] p-5 shadow-xl">
-              <div className="flex items-center justify-between text-xs font-semibold mb-4">
-                <span className="text-white text-sm">Where to Read</span>
-                <span className="text-zinc-500 text-[11px]">Partner Catalog</span>
-              </div>
-
-              <a
-                href={openLibraryUrl}
-                target="_blank"
-                rel="noreferrer"
-                className="flex items-center justify-between rounded-xl border border-white/5 bg-[#181d26] p-3.5 transition hover:border-[#9333ea]/50 hover:bg-[#1e2430] group"
-              >
-                <div className="flex items-center gap-3">
-                  <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#9333ea]/20 text-[#c084fc] font-bold text-xs">
-                    OL
-                  </span>
-                  <div>
-                    <div className="font-semibold text-white text-sm group-hover:text-[#c084fc] transition">
-                      Open Library
-                    </div>
-                    <div className="text-[11px] text-zinc-400">
-                      View source catalog &amp; editions
-                    </div>
-                  </div>
-                </div>
-                <span className="text-zinc-400 group-hover:text-white transition">↗</span>
-              </a>
-            </div>
-
+          {/* Right Column (Users' Collections) */}
+          <div className="w-full max-w-[280px] space-y-6">
             {/* Users' Collections Card */}
-            <div className="rounded-2xl border border-white/10 bg-[#12151c] p-5 shadow-xl space-y-4">
+            <div className="w-full max-w-[280px] rounded-2xl border border-white/10 bg-[#12151c] p-5 shadow-xl space-y-4">
               <h3 className="text-sm font-bold text-white tracking-tight">Featured Collections</h3>
 
               <div className="space-y-3">
                 <Link
                   href="/library"
-                  className="flex items-center gap-3.5 rounded-xl border border-white/5 bg-[#171b24] p-2.5 transition hover:border-white/15 hover:bg-[#1e2330] group"
+                  className="flex items-center gap-3.5 rounded-xl bg-transparent p-2.5 transition hover:bg-white/5 group"
                 >
                   <div className="relative h-14 w-14 rounded-lg overflow-hidden shrink-0 bg-[#242b38]">
                     {coverURL ? (
@@ -651,7 +685,7 @@ export function BookDetailPage({
 
                 <Link
                   href="/library"
-                  className="flex items-center gap-3.5 rounded-xl border border-white/5 bg-[#171b24] p-2.5 transition hover:border-white/15 hover:bg-[#1e2330] group"
+                  className="flex items-center gap-3.5 rounded-xl bg-transparent p-2.5 transition hover:bg-white/5 group"
                 >
                   <div className="relative h-14 w-14 rounded-lg overflow-hidden shrink-0 bg-[#242b38]">
                     <div className="h-full w-full bg-gradient-to-tr from-amber-700 to-red-900" />
@@ -668,7 +702,7 @@ export function BookDetailPage({
 
                 <Link
                   href="/library"
-                  className="flex items-center gap-3.5 rounded-xl border border-white/5 bg-[#171b24] p-2.5 transition hover:border-white/15 hover:bg-[#1e2330] group"
+                  className="flex items-center gap-3.5 rounded-xl bg-transparent p-2.5 transition hover:bg-white/5 group"
                 >
                   <div className="relative h-14 w-14 rounded-lg overflow-hidden shrink-0 bg-[#242b38]">
                     <div className="h-full w-full bg-gradient-to-tr from-emerald-800 to-cyan-900" />

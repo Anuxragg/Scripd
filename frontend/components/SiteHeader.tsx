@@ -63,6 +63,7 @@ export function SiteHeader({ theme = "light" }: { theme?: "dark" | "light" }) {
   const [notificationTab, setNotificationTab] = useState<"all" | "updates" | "activity">("all");
   const [readIds, setReadIds] = useState<string[]>([]);
   const notificationsRef = useRef<HTMLDivElement>(null);
+  const userMenuRef = useRef<HTMLDivElement>(null);
 
   // Derive real notifications from actual feed activity
   const feedItems =
@@ -123,6 +124,9 @@ export function SiteHeader({ theme = "light" }: { theme?: "dark" | "light" }) {
       if (notificationsRef.current && !notificationsRef.current.contains(event.target as Node)) {
         setNotificationsOpen(false);
       }
+      if (userMenuRef.current && !userMenuRef.current.contains(event.target as Node)) {
+        setUserMenuOpen(false);
+      }
     }
     document.addEventListener("mousedown", handleClickOutside);
     return () => {
@@ -164,33 +168,24 @@ export function SiteHeader({ theme = "light" }: { theme?: "dark" | "light" }) {
             aria-label="Main navigation"
             className="flex items-center gap-6 sm:gap-8 uppercase tracking-wider"
           >
-            {/* Activity Lightning Icon */}
-            <Link
-              href="/feed"
-              className="flex items-center justify-center p-1 text-[#a0a0a0] transition hover:text-white"
-              title="Activity Feed"
-              aria-label="Activity Feed"
-            >
-              <svg className="h-5 w-5 sm:h-5.25 sm:w-5.25" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M13 2L3 14h8l-1 8 11-12h-8l1-8z" />
-              </svg>
-            </Link>
-
             {/* Navigation Links */}
             <div className="hidden md:flex items-center gap-5 sm:gap-7">
-              <Link href="/books" className="navbar-option">
+              <Link href="/books" className="navbar-option text-white hover:text-white/80">
                 Books
               </Link>
-              <Link href="/library" className="navbar-option">
+              <Link href="/library" className="navbar-option text-white hover:text-white/80">
                 Lists
               </Link>
-              <Link href="/books" className="hidden lg:inline navbar-option">
+              <Link
+                href="/books"
+                className="hidden lg:inline navbar-option text-white hover:text-white/80"
+              >
                 Members
               </Link>
             </div>
 
             {/* Right Action Icons & Profile with increased spacing */}
-            <div className="flex items-center gap-7 sm:gap-8">
+            <div className="flex items-center gap-4 sm:gap-8">
               {/* Bento Grid Categories & Collections Button */}
               <div className="relative" ref={browseMenuRef}>
                 <button
@@ -201,7 +196,7 @@ export function SiteHeader({ theme = "light" }: { theme?: "dark" | "light" }) {
                     setUserMenuOpen(false);
                   }}
                   className={`flex items-center justify-center p-1 transition ${
-                    browseMenuOpen ? "text-[#40bcf4]" : "text-[#a0a0a0] hover:text-white"
+                    browseMenuOpen ? "text-[#40bcf4]" : "text-white hover:text-white/80"
                   }`}
                   aria-label="Browse categories and filters"
                   title="Browse categories"
@@ -305,7 +300,7 @@ export function SiteHeader({ theme = "light" }: { theme?: "dark" | "light" }) {
                     setUserMenuOpen(false);
                   }}
                   className={`relative flex items-center justify-center p-1 transition ${
-                    notificationsOpen ? "text-[#40bcf4]" : "text-[#a0a0a0] hover:text-white"
+                    notificationsOpen ? "text-[#40bcf4]" : "text-white hover:text-white/80"
                   }`}
                   title="Notifications"
                   aria-label="Notifications"
@@ -492,7 +487,7 @@ export function SiteHeader({ theme = "light" }: { theme?: "dark" | "light" }) {
                     setUserMenuOpen(false);
                   }}
                   className={`flex items-center justify-center p-1 transition ${
-                    searchOpen ? "text-[#40bcf4]" : "text-[#a0a0a0] hover:text-white"
+                    searchOpen ? "text-[#40bcf4]" : "text-white hover:text-white/80"
                   }`}
                   aria-label="Search catalog"
                 >
@@ -513,7 +508,7 @@ export function SiteHeader({ theme = "light" }: { theme?: "dark" | "light" }) {
                 {searchOpen && (
                   <form
                     onSubmit={handleSearchSubmit}
-                    className="absolute right-0 top-10 w-72 rounded border border-[#2c3440] bg-[#1b2228] p-2 shadow-2xl z-50"
+                    className="absolute left-1/2 -translate-x-1/2 top-10 w-72 max-w-[calc(100vw-2rem)] rounded border border-[#2c3440] bg-[#1b2228] p-2 shadow-2xl z-50"
                   >
                     <div className="flex items-center">
                       <input
@@ -537,7 +532,7 @@ export function SiteHeader({ theme = "light" }: { theme?: "dark" | "light" }) {
 
               {/* Profile Dropdown or Sign In on the Far Right */}
               {profile ? (
-                <div className="relative">
+                <div className="relative" ref={userMenuRef}>
                   <button
                     type="button"
                     onClick={() => {
@@ -545,7 +540,11 @@ export function SiteHeader({ theme = "light" }: { theme?: "dark" | "light" }) {
                       setBrowseMenuOpen(false);
                       setSearchOpen(false);
                     }}
-                    className="flex items-center gap-2 rounded-full transition focus:outline-none group"
+                    className={`flex items-center gap-2 px-2.5 py-1 text-left transition-colors focus:outline-none w-[145px] ${
+                      userMenuOpen
+                        ? "bg-[#5b6c7d] rounded-t-md border-t border-x border-[#4d5c6b] border-b border-black/15 z-50 relative"
+                        : "rounded-md hover:bg-white/5 border border-transparent"
+                    }`}
                     aria-expanded={userMenuOpen}
                     aria-label="User account menu"
                   >
@@ -565,75 +564,94 @@ export function SiteHeader({ theme = "light" }: { theme?: "dark" | "light" }) {
                         </span>
                       )}
                     </span>
-                    <span className="navbar-option group-hover:text-white transition">
-                      {profile.username}
+                    <span className="flex items-center gap-1.5 flex-1 min-w-0">
+                      <span className="navbar-option text-white truncate">{profile.username}</span>
+                      <svg
+                        className={`h-3 w-3 text-white shrink-0 transition-transform duration-200 ${
+                          userMenuOpen ? "rotate-180" : ""
+                        }`}
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth={2.5}
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        aria-hidden="true"
+                      >
+                        <path d="M6 9l6 6 6-6" />
+                      </svg>
                     </span>
                   </button>
 
                   {userMenuOpen && (
-                    <div className="absolute right-0 mt-2 w-48 rounded-2xl border border-[#2c3440] bg-[#1b2228] py-2 text-xs font-medium normal-case shadow-2xl z-50">
-                      <Link
-                        href="/feed"
-                        onClick={() => setUserMenuOpen(false)}
-                        className="block px-4 py-2 text-[#9ab] hover:bg-[#242c34] hover:text-white"
-                      >
-                        Activity Feed
-                      </Link>
-                      <Link
-                        href={`/u/${profile.username}`}
-                        onClick={() => setUserMenuOpen(false)}
-                        className="block px-4 py-2 text-[#9ab] hover:bg-[#242c34] hover:text-white"
-                      >
-                        Public Profile
-                      </Link>
-                      <Link
-                        href="/edit-profile"
-                        onClick={() => setUserMenuOpen(false)}
-                        className="block px-4 py-2 text-[#9ab] hover:bg-[#242c34] hover:text-white"
-                      >
-                        Edit Profile
-                      </Link>
-                      <Link
-                        href="/library"
-                        onClick={() => setUserMenuOpen(false)}
-                        className="block px-4 py-2 text-[#9ab] hover:bg-[#242c34] hover:text-white"
-                      >
-                        My Library &amp; Diary
-                      </Link>
-                      <Link
-                        href="/books"
-                        onClick={() => setUserMenuOpen(false)}
-                        className="block px-4 py-2 text-[#9ab] hover:bg-[#242c34] hover:text-white"
-                      >
-                        Book Catalog
-                      </Link>
-                      <Link
-                        href="/settings"
-                        onClick={() => setUserMenuOpen(false)}
-                        className="block px-4 py-2 text-[#9ab] hover:bg-[#242c34] hover:text-white"
-                      >
-                        Account Settings
-                      </Link>
-                      <button
-                        type="button"
-                        disabled={logoutMutation.isPending}
-                        onClick={() => {
-                          setUserMenuOpen(false);
-                          logoutMutation.mutate();
-                        }}
-                        className="w-full text-left px-4 py-2 text-[#ff8000] hover:bg-[#242c34]"
-                      >
-                        {logoutMutation.isPending ? "Signing out…" : "Sign out"}
-                      </button>
+                    <div className="absolute top-full left-0 w-[145px] rounded-b-md bg-[#5b6c7d] pb-1 text-xs shadow-2xl z-50 overflow-hidden border-b border-x border-[#4d5c6b] normal-case tracking-normal">
+                      <div className="flex flex-col">
+                        {[
+                          { label: "Home", href: "/feed" },
+                          { label: "Profile", href: `/u/${profile.username}` },
+                          { label: "Books", href: "/books" },
+                          { label: "Diary", href: "/library" },
+                          { label: "Reviews", href: `/u/${profile.username}` },
+                          { label: "Likes", href: `/u/${profile.username}` },
+                          { label: "Network", href: "/feed" },
+                        ].map((item) => (
+                          <Link
+                            key={item.label}
+                            href={item.href}
+                            onClick={() => setUserMenuOpen(false)}
+                            className="px-3 py-1 text-[15px] font-normal text-[#1c2733] hover:text-white hover:bg-black/15 transition block"
+                          >
+                            {item.label}
+                          </Link>
+                        ))}
+
+                        <div className="border-t border-black/15 my-0.5" />
+
+                        {[
+                          { label: "Settings", href: "/settings" },
+                          {
+                            label: logoutMutation.isPending ? "Signing Out…" : "Sign Out",
+                            onClick: () => logoutMutation.mutate(),
+                            disabled: logoutMutation.isPending,
+                          },
+                        ].map((item) =>
+                          item.href ? (
+                            <Link
+                              key={item.label}
+                              href={item.href}
+                              onClick={() => setUserMenuOpen(false)}
+                              className="px-3 py-1 text-[15px] font-normal text-[#1c2733] hover:text-white hover:bg-black/15 transition block"
+                            >
+                              {item.label}
+                            </Link>
+                          ) : (
+                            <button
+                              key={item.label}
+                              type="button"
+                              disabled={item.disabled}
+                              onClick={() => {
+                                setUserMenuOpen(false);
+                                item.onClick?.();
+                              }}
+                              className="px-3 py-1 text-[15px] font-normal text-[#1c2733] hover:text-white hover:bg-black/15 transition block w-full text-left cursor-pointer"
+                            >
+                              {item.label}
+                            </button>
+                          ),
+                        )}
+                      </div>
                     </div>
                   )}
                 </div>
               ) : (
                 <div className="flex items-center gap-3 sm:gap-4">
-                  <Link href="/login" className="navbar-option">
+                  <Link href="/login" className="navbar-option text-white hover:text-white/80">
                     Sign in
                   </Link>
-                  <Link href="/signup" className="hidden sm:inline navbar-option">
+                  <Link
+                    href="/signup"
+                    className="hidden sm:inline navbar-option text-white hover:text-white/80"
+                  >
                     Create account
                   </Link>
                 </div>

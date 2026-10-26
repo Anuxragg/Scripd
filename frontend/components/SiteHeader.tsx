@@ -172,7 +172,7 @@ export function SiteHeader({ theme = "light" }: { theme?: "dark" | "light" }) {
               aria-label="Activity Feed"
             >
               <svg
-                className="h-5 w-5 sm:h-[21px] sm:w-[21px]"
+                className="h-5 w-5 sm:h-5.25 sm:w-5.25"
                 viewBox="0 0 24 24"
                 fill="currentColor"
               >
@@ -211,7 +211,7 @@ export function SiteHeader({ theme = "light" }: { theme?: "dark" | "light" }) {
                   title="Browse categories"
                 >
                   <svg
-                    className="h-5 w-5 sm:h-[21px] sm:w-[21px]"
+                    className="h-5 w-5 sm:h-5.25 sm:w-5.25"
                     viewBox="0 0 24 24"
                     fill="none"
                     stroke="currentColor"
@@ -227,25 +227,25 @@ export function SiteHeader({ theme = "light" }: { theme?: "dark" | "light" }) {
                 </button>
 
                 {browseMenuOpen && (
-                  <div className="absolute right-0 top-10 w-[280px] sm:w-[310px] rounded-2xl border border-[#262c36] bg-[#12141a]/95 backdrop-blur-xl p-3 shadow-2xl z-50">
-                    <div className="grid grid-cols-3 gap-2">
+                  <div className="absolute left-1/2 -translate-x-1/2 top-11 w-72 sm:w-80 max-w-[calc(100vw-2rem)] rounded-2xl border border-[#222734] bg-[#0c0e14]/98 backdrop-blur-2xl p-2.5 sm:p-3 shadow-2xl shadow-black/80 z-50">
+                    <div className="grid grid-cols-3 gap-2 sm:gap-2.5">
                       <Link
                         href="/books?q=category"
                         onClick={() => setBrowseMenuOpen(false)}
-                        className="flex flex-col items-center justify-center gap-2 rounded-xl border border-[#252b36] bg-[#171b23]/90 py-3.5 px-2 text-center transition hover:border-[#40bcf4]/50 hover:bg-[#1e2430] group"
+                        className="group flex flex-col items-center justify-center gap-3 rounded-2xl border border-[#232836] bg-[#13161f] py-4.5 px-2 text-center transition-colors duration-200 hover:border-white/20 hover:bg-[#181c26]"
                       >
                         <svg
-                          className="h-5 w-5 text-[#89a] group-hover:text-[#40bcf4] group-hover:scale-110 transition"
+                          className="h-6 w-6 text-[#cad3e2] transition-colors duration-200 group-hover:text-white"
                           viewBox="0 0 24 24"
                           fill="none"
                           stroke="currentColor"
                           strokeWidth={1.8}
                         >
                           <path d="M12 3.5L7.5 11h9L12 3.5z" strokeLinejoin="round" />
-                          <rect x="4" y="14" width="6.5" height="6.5" rx="1" />
-                          <rect x="13.5" y="14" width="6.5" height="6.5" rx="1" />
+                          <rect x="4" y="14" width="6.5" height="6.5" rx="1.5" />
+                          <rect x="13.5" y="14" width="6.5" height="6.5" rx="1.5" />
                         </svg>
-                        <span className="text-[11px] font-semibold text-[#89a] group-hover:text-white transition">
+                        <span className="normal-case tracking-normal text-xs font-semibold text-[#e1e7f0] transition-colors duration-200 group-hover:text-white">
                           Category
                         </span>
                       </Link>
@@ -253,10 +253,10 @@ export function SiteHeader({ theme = "light" }: { theme?: "dark" | "light" }) {
                       <Link
                         href="/books?q=language"
                         onClick={() => setBrowseMenuOpen(false)}
-                        className="flex flex-col items-center justify-center gap-2 rounded-xl border border-[#252b36] bg-[#171b23]/90 py-3.5 px-2 text-center transition hover:border-[#40bcf4]/50 hover:bg-[#1e2430] group"
+                        className="group flex flex-col items-center justify-center gap-3 rounded-2xl border border-[#232836] bg-[#13161f] py-4.5 px-2 text-center transition-colors duration-200 hover:border-white/20 hover:bg-[#181c26]"
                       >
                         <svg
-                          className="h-5 w-5 text-[#89a] group-hover:text-[#40bcf4] group-hover:scale-110 transition"
+                          className="h-6 w-6 text-[#cad3e2] transition-colors duration-200 group-hover:text-white"
                           viewBox="0 0 24 24"
                           fill="none"
                           stroke="currentColor"
@@ -268,7 +268,7 @@ export function SiteHeader({ theme = "light" }: { theme?: "dark" | "light" }) {
                             d="M3 5h12M9 3v2m1 14l3.5-9 3.5 9m-6-3h5M4 17C6.5 16 8.5 14 10 11.5M13 19c-2-2-3.5-4.5-4.5-7.5"
                           />
                         </svg>
-                        <span className="text-[11px] font-semibold text-[#89a] group-hover:text-white transition">
+                        <span className="normal-case tracking-normal text-xs font-semibold text-[#e1e7f0] transition-colors duration-200 group-hover:text-white">
                           Language
                         </span>
                       </Link>
@@ -276,10 +276,10 @@ export function SiteHeader({ theme = "light" }: { theme?: "dark" | "light" }) {
                       <Link
                         href="/books?q=country"
                         onClick={() => setBrowseMenuOpen(false)}
-                        className="flex flex-col items-center justify-center gap-2 rounded-xl border border-[#252b36] bg-[#171b23]/90 py-3.5 px-2 text-center transition hover:border-[#40bcf4]/50 hover:bg-[#1e2430] group"
+                        className="group flex flex-col items-center justify-center gap-3 rounded-2xl border border-[#232836] bg-[#13161f] py-4.5 px-2 text-center transition-colors duration-200 hover:border-white/20 hover:bg-[#181c26]"
                       >
                         <svg
-                          className="h-5 w-5 text-[#89a] group-hover:text-[#40bcf4] group-hover:scale-110 transition"
+                          className="h-6 w-6 text-[#cad3e2] transition-colors duration-200 group-hover:text-white"
                           viewBox="0 0 24 24"
                           fill="none"
                           stroke="currentColor"
@@ -289,7 +289,7 @@ export function SiteHeader({ theme = "light" }: { theme?: "dark" | "light" }) {
                           <path d="M3.6 9h16.8M3.6 15h16.8" />
                           <path d="M12 3a14.5 14.5 0 0 0 0 18M12 3a14.5 14.5 0 0 1 0 18" />
                         </svg>
-                        <span className="text-[11px] font-semibold text-[#89a] group-hover:text-white transition">
+                        <span className="normal-case tracking-normal text-xs font-semibold text-[#e1e7f0] transition-colors duration-200 group-hover:text-white">
                           Country
                         </span>
                       </Link>
@@ -315,7 +315,7 @@ export function SiteHeader({ theme = "light" }: { theme?: "dark" | "light" }) {
                   aria-label="Notifications"
                 >
                   <svg
-                    className="h-5 w-5 sm:h-[21px] sm:w-[21px]"
+                    className="h-5 w-5 sm:h-5.25 sm:w-5.25"
                     viewBox="0 0 24 24"
                     fill="none"
                     stroke="currentColor"
@@ -333,7 +333,7 @@ export function SiteHeader({ theme = "light" }: { theme?: "dark" | "light" }) {
                 </button>
 
                 {notificationsOpen && (
-                  <div className="absolute left-1/2 -translate-x-1/2 top-10 w-[340px] sm:w-[380px] max-w-[calc(100vw-2rem)] rounded-2xl border border-[#262c36] bg-[#12141a]/95 backdrop-blur-xl shadow-2xl z-50 overflow-hidden">
+                  <div className="absolute left-1/2 -translate-x-1/2 top-10 w-85 sm:w-95 max-w-[calc(100vw-2rem)] rounded-2xl border border-[#262c36] bg-[#12141a]/95 backdrop-blur-xl shadow-2xl z-50 overflow-hidden">
                     {/* Header */}
                     <div className="flex items-center justify-between px-5 pt-4 pb-2.5">
                       <h3 className="text-base font-bold text-white tracking-tight">
@@ -399,7 +399,7 @@ export function SiteHeader({ theme = "light" }: { theme?: "dark" | "light" }) {
                     </div>
 
                     {/* Content Area */}
-                    <div className="min-h-[260px] flex flex-col justify-center overflow-y-auto scrollbar-thin">
+                    <div className="min-h-65 flex flex-col justify-center overflow-y-auto scrollbar-thin">
                       {filteredNotifications.length === 0 ? (
                         <div className="flex flex-1 flex-col items-center justify-center py-12 px-6 text-center">
                           <div className="flex h-16 w-16 items-center justify-center rounded-full bg-[#1b2028] text-[#678] mb-4">
@@ -501,7 +501,7 @@ export function SiteHeader({ theme = "light" }: { theme?: "dark" | "light" }) {
                   aria-label="Search catalog"
                 >
                   <svg
-                    className="h-5 w-5 sm:h-[21px] sm:w-[21px]"
+                    className="h-5 w-5 sm:h-5.25 sm:w-5.25"
                     viewBox="0 0 24 24"
                     fill="none"
                     stroke="currentColor"
@@ -553,7 +553,7 @@ export function SiteHeader({ theme = "light" }: { theme?: "dark" | "light" }) {
                     aria-expanded={userMenuOpen}
                     aria-label="User account menu"
                   >
-                    <span className="relative flex h-7 w-7 sm:h-[29px] sm:w-[29px] shrink-0 overflow-hidden rounded-full ring-1 ring-[#2c3440] group-hover:ring-[#40bcf4]/60 bg-[#1e242c]">
+                    <span className="relative flex h-7 w-7 sm:h-7.25 sm:w-7.25 shrink-0 overflow-hidden rounded-full ring-1 ring-[#2c3440] group-hover:ring-[#40bcf4]/60 bg-[#1e242c]">
                       {avatarUrl ? (
                         <Image
                           src={avatarUrl}
@@ -657,7 +657,7 @@ export function SiteHeader({ theme = "light" }: { theme?: "dark" | "light" }) {
       </Link>
       <nav aria-label="Main navigation" className="flex items-center gap-3 text-sm">
         <Link
-          className="hidden rounded-full px-3 py-2 font-medium text-[var(--muted)] hover:text-[var(--ink)] sm:inline-flex"
+          className="hidden rounded-full px-3 py-2 font-medium text-(--muted) hover:text-(--ink) sm:inline-flex"
           href="/books"
         >
           Discover
@@ -665,24 +665,24 @@ export function SiteHeader({ theme = "light" }: { theme?: "dark" | "light" }) {
         {profile ? (
           <>
             <Link
-              className="rounded-full px-3 py-2 font-medium text-[var(--muted)] hover:text-[var(--ink)]"
+              className="rounded-full px-3 py-2 font-medium text-(--muted) hover:text-(--ink)"
               href="/feed"
             >
               Feed
             </Link>
             <Link
-              className="rounded-full px-3 py-2 font-medium text-[var(--muted)] hover:text-[var(--ink)]"
+              className="rounded-full px-3 py-2 font-medium text-(--muted) hover:text-(--ink)"
               href={`/u/${profile.username}`}
             >
               Profile
             </Link>
             <Link
-              className="rounded-full px-3 py-2 font-medium text-[var(--muted)] hover:text-[var(--ink)]"
+              className="rounded-full px-3 py-2 font-medium text-(--muted) hover:text-(--ink)"
               href="/library"
             >
               Library
             </Link>
-            <span className="hidden sm:inline-flex items-center gap-2 text-[var(--muted)]">
+            <span className="hidden sm:inline-flex items-center gap-2 text-(--muted)">
               <span className="relative flex h-5 w-5 shrink-0 overflow-hidden rounded-full border border-gray-200 bg-gray-100">
                 {avatarUrl ? (
                   <Image
@@ -702,7 +702,7 @@ export function SiteHeader({ theme = "light" }: { theme?: "dark" | "light" }) {
               <span>Reading as @{profile.username}</span>
             </span>
             <button
-              className="rounded-full border border-[var(--line)] px-4 py-2 font-medium hover:bg-white disabled:opacity-60"
+              className="rounded-full border border-(--line) px-4 py-2 font-medium hover:bg-white disabled:opacity-60"
               disabled={logoutMutation.isPending}
               onClick={() => logoutMutation.mutate()}
               type="button"
@@ -718,13 +718,13 @@ export function SiteHeader({ theme = "light" }: { theme?: "dark" | "light" }) {
         ) : (
           <>
             <Link
-              className="rounded-full px-4 py-2 font-medium text-[var(--muted)] hover:text-[var(--ink)]"
+              className="rounded-full px-4 py-2 font-medium text-(--muted) hover:text-(--ink)"
               href="/login"
             >
               Sign in
             </Link>
             <Link
-              className="rounded-full bg-[var(--forest)] px-4 py-2 font-medium text-white hover:bg-[var(--forest-dark)]"
+              className="rounded-full bg-(--forest) px-4 py-2 font-medium text-white hover:bg-(--forest-dark)"
               href="/signup"
             >
               Join Scripd

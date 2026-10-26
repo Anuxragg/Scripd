@@ -34,7 +34,7 @@ export function useFollowStatus(username: string) {
     queryKey: ["users", "follow-status", username.toLowerCase()],
     queryFn: () => getFollowStatus(username),
     enabled: Boolean(username.trim()),
-    staleTime: 30_000,
+    staleTime: 5_000,
   });
 }
 

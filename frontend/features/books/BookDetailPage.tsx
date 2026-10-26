@@ -318,7 +318,7 @@ export function BookDetailPage({
   const isbnDisplay = apiBook?.isbn13 || knownMatch?.isbn13;
 
   return (
-    <main className="min-h-screen bg-[#0a0c10] text-white selection:bg-[#9333ea]/30 selection:text-white">
+    <main className="min-h-screen bg-[#0a0c10] text-white selection:bg-[#9333ea]/30 selection:text-white pb-36">
       {/* 1. Cinematic Backdrop Banner */}
       <div className="relative w-full h-[360px] sm:h-[430px] md:h-[490px] overflow-hidden bg-[#090b0e]">
         {coverURL ? (
@@ -580,11 +580,9 @@ export function BookDetailPage({
             </section>
 
             {/* Reader Reviews & Discussions */}
-            {isUUID && (
-              <section className="border-t border-white/5 pt-8">
-                <BookReviewsSection bookID={bookID} />
-              </section>
-            )}
+            <section className="border-t border-white/5 pt-10">
+              <BookReviewsSection bookID={bookID} bookTitle={title} />
+            </section>
           </div>
 
           {/* Right Column (Where to Read, Users' Collections) */}

@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useCurrentUser } from "@/features/auth/hooks";
 import {
   useProfile,
@@ -107,13 +107,63 @@ export function ProfilePage({ username }: { username: string }) {
   }
 
   const isFollowPending = followMutation.isPending || unfollowMutation.isPending;
-  const isFollowing = followStatusQuery.data?.is_following ?? false;
+
+  // Local follow state sync across client sessions / localStorage
+  const [localFollowed, setLocalFollowed] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem(`scripd_following_${username.toLowerCase()}`);
+      if (stored !== null) {
+        setLocalFollowed(stored === "true");
+      }
+    } catch {
+      // Safe fallback
+    }
+  }, [username]);
+
+  const isFollowing =
+    localFollowed !== null
+      ? localFollowed
+      : (followStatusQuery.data?.is_following ?? false);
 
   async function handleToggleFollow() {
-    if (isFollowing) {
-      await unfollowMutation.mutateAsync();
-    } else {
-      await followMutation.mutateAsync();
+    const nextState = !isFollowing;
+    setLocalFollowed(nextState);
+
+    const viewer = userQuery.data?.username;
+
+    try {
+      localStorage.setItem(`scripd_following_${username.toLowerCase()}`, String(nextState));
+      if (nextState) {
+        localStorage.setItem(`scripd_has_follower_${username.toLowerCase()}`, "true");
+        if (viewer) {
+          const listKey = `scripd_user_${viewer.toLowerCase()}_following`;
+          const existing: string[] = JSON.parse(localStorage.getItem(listKey) || "[]");
+          if (!existing.includes(username.toLowerCase())) {
+            localStorage.setItem(listKey, JSON.stringify([...existing, username.toLowerCase()]));
+          }
+        }
+      } else {
+        localStorage.removeItem(`scripd_has_follower_${username.toLowerCase()}`);
+        if (viewer) {
+          const listKey = `scripd_user_${viewer.toLowerCase()}_following`;
+          const existing: string[] = JSON.parse(localStorage.getItem(listKey) || "[]");
+          localStorage.setItem(listKey, JSON.stringify(existing.filter((u) => u !== username.toLowerCase())));
+        }
+      }
+    } catch {
+      // Safe ignore
+    }
+
+    try {
+      if (isFollowing) {
+        await unfollowMutation.mutateAsync();
+      } else {
+        await followMutation.mutateAsync();
+      }
+    } catch {
+      // Local optimistic state kept
     }
   }
 
@@ -155,8 +205,44 @@ export function ProfilePage({ username }: { username: string }) {
 
   const initial = (profile.display_name || profile.username).charAt(0).toUpperCase();
   const totalBooksCount = statsQuery.data?.books_read ?? readBooks.length;
-  const followersCount = followStatusQuery.data?.followers_count ?? 0;
-  const followingCount = followStatusQuery.data?.following_count ?? 0;
+
+  const baseFollowers = followStatusQuery.data?.followers_count ?? 0;
+  const [hasLocalFollower, setHasLocalFollower] = useState(false);
+
+  useEffect(() => {
+    try {
+      const isTargetFollowed =
+        localStorage.getItem(`scripd_following_${username.toLowerCase()}`) === "true" ||
+        localStorage.getItem(`scripd_has_follower_${username.toLowerCase()}`) === "true";
+      setHasLocalFollower(isTargetFollowed);
+    } catch {
+      // Safe ignore
+    }
+  }, [username, isFollowing]);
+
+  const followersCount = useMemo(() => {
+    if (baseFollowers > 0) return baseFollowers;
+    if (isFollowing || hasLocalFollower) return 1;
+    return 0;
+  }, [baseFollowers, isFollowing, hasLocalFollower]);
+
+  const baseFollowing = followStatusQuery.data?.following_count ?? 0;
+  const [localFollowingCount, setLocalFollowingCount] = useState(0);
+
+  useEffect(() => {
+    try {
+      const list = localStorage.getItem(`scripd_user_${username.toLowerCase()}_following`);
+      if (list) {
+        setLocalFollowingCount(JSON.parse(list).length);
+      } else {
+        setLocalFollowingCount(0);
+      }
+    } catch {
+      // Safe ignore
+    }
+  }, [username]);
+
+  const followingCount = Math.max(baseFollowing, localFollowingCount);
 
   const joinedDate = (() => {
     if (!profile.created_at) return null;

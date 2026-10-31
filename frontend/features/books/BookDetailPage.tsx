@@ -645,7 +645,15 @@ export function BookDetailPage({
 
             {/* Reader Reviews & Discussions */}
             <section className="border-t border-white/5 pt-10">
-              <BookReviewsSection bookID={bookID} bookTitle={title} />
+              <BookReviewsSection
+                bookID={bookID}
+                bookTitle={title}
+                bookYear={
+                  typeof publishedYear === "number" || /^\d{4}$/.test(String(publishedYear))
+                    ? String(publishedYear)
+                    : undefined
+                }
+              />
             </section>
           </div>
 

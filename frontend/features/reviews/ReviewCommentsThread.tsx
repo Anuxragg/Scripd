@@ -182,8 +182,8 @@ export function ReviewCommentsThread({
     if (!text || isSubmitting) return;
 
     setIsSubmitting(true);
-    const authorUsername = currentUser?.username || "Anuxragg";
-    const authorDisplayName = currentUser?.display_name || currentUser?.username || "Anuxragg";
+    const authorUsername = currentUser?.username || "guest";
+    const authorDisplayName = currentUser?.display_name || currentUser?.username || "Guest";
     const authorId =
       currentUser?.id ||
       (typeof crypto !== "undefined" && crypto.randomUUID

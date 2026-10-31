@@ -89,9 +89,7 @@ export function ResetPasswordForm() {
           </svg>
         </div>
 
-        <h2 className="text-2xl font-bold text-gray-900 tracking-tight mb-2">
-          Invalid Reset Link
-        </h2>
+        <h2 className="text-2xl font-bold text-gray-900 tracking-tight mb-2">Invalid Reset Link</h2>
         <p className="text-sm text-gray-600 leading-relaxed max-w-sm mx-auto mb-6">
           This password reset link is missing a token or is invalid. Please request a new link.
         </p>
@@ -124,11 +122,10 @@ export function ResetPasswordForm() {
           </svg>
         </div>
 
-        <h2 className="text-2xl font-bold text-gray-900 tracking-tight mb-2">
-          Password Reset!
-        </h2>
+        <h2 className="text-2xl font-bold text-gray-900 tracking-tight mb-2">Password Reset!</h2>
         <p className="text-sm text-gray-600 leading-relaxed max-w-sm mx-auto mb-6">
-          Your password has been successfully updated. Redirecting you to sign in with your new password…
+          Your password has been successfully updated. Redirecting you to sign in with your new
+          password…
         </p>
 
         <Link
@@ -157,7 +154,9 @@ export function ResetPasswordForm() {
         setSubmitError(error.message || "Failed to reset password. The link may have expired.");
         return;
       }
-      setSubmitError("We couldn’t reset your password. Please check your connection and try again.");
+      setSubmitError(
+        "We couldn’t reset your password. Please check your connection and try again.",
+      );
     }
   }
 
@@ -192,14 +191,26 @@ export function ResetPasswordForm() {
               aria-label={showPassword ? "Hide password" : "Show password"}
             >
               {showPassword ? (
-                <svg className="h-4.5 w-4.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <svg
+                  className="h-4.5 w-4.5"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                >
                   <path d="M9.88 9.88a3 3 0 1 0 4.24 4.24" />
                   <path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68" />
                   <path d="M6.61 6.61A13.526 13.526 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61" />
                   <line x1="2" y1="2" x2="22" y2="22" />
                 </svg>
               ) : (
-                <svg className="h-4.5 w-4.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <svg
+                  className="h-4.5 w-4.5"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                >
                   <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" />
                   <circle cx="12" cy="12" r="3" />
                 </svg>
@@ -252,14 +263,26 @@ export function ResetPasswordForm() {
               aria-label={showConfirmPassword ? "Hide password" : "Show password"}
             >
               {showConfirmPassword ? (
-                <svg className="h-4.5 w-4.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <svg
+                  className="h-4.5 w-4.5"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                >
                   <path d="M9.88 9.88a3 3 0 1 0 4.24 4.24" />
                   <path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68" />
                   <path d="M6.61 6.61A13.526 13.526 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61" />
                   <line x1="2" y1="2" x2="22" y2="22" />
                 </svg>
               ) : (
-                <svg className="h-4.5 w-4.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <svg
+                  className="h-4.5 w-4.5"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                >
                   <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" />
                   <circle cx="12" cy="12" r="3" />
                 </svg>

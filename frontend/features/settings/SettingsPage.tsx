@@ -386,7 +386,9 @@ export function SettingsPage() {
           2. PASSWORD & SECURITY SECTION
          ======================================================== */}
       <section>
-        <h2 className="text-2xl font-bold text-white tracking-tight mb-4">Password &amp; security</h2>
+        <h2 className="text-2xl font-bold text-white tracking-tight mb-4">
+          Password &amp; security
+        </h2>
 
         <div className="rounded-2xl border border-white/5 bg-[#14161f] p-5 sm:p-6 shadow-xl">
           <div className="flex items-center justify-between gap-4">
@@ -420,7 +422,10 @@ export function SettingsPage() {
                 </div>
               )}
 
-              <form onSubmit={passwordForm.handleSubmit(onPasswordSubmit)} className="space-y-4 max-w-md">
+              <form
+                onSubmit={passwordForm.handleSubmit(onPasswordSubmit)}
+                className="space-y-4 max-w-md"
+              >
                 <div>
                   <label className="block text-xs font-semibold text-zinc-300 mb-1">
                     Current Password
@@ -584,7 +589,8 @@ export function SettingsPage() {
             {!user.email_verified && (
               <div className="rounded-xl bg-amber-500/10 border border-amber-500/20 p-3.5 space-y-2">
                 <p className="text-xs text-amber-200">
-                  Your email is not verified yet. Verify your email to secure your account and recover access.
+                  Your email is not verified yet. Verify your email to secure your account and
+                  recover access.
                 </p>
                 <button
                   type="button"
@@ -659,11 +665,15 @@ export function SettingsPage() {
                     onClick={() => {
                       setPhoneNumber("");
                       if (typeof window !== "undefined") {
-                        const existing = localStorage.getItem(`scripd_user_meta_${username}`) || "{}";
+                        const existing =
+                          localStorage.getItem(`scripd_user_meta_${username}`) || "{}";
                         try {
                           const parsed = JSON.parse(existing);
                           delete parsed.phone;
-                          localStorage.setItem(`scripd_user_meta_${username}`, JSON.stringify(parsed));
+                          localStorage.setItem(
+                            `scripd_user_meta_${username}`,
+                            JSON.stringify(parsed),
+                          );
                         } catch {
                           // ignore
                         }
@@ -720,7 +730,8 @@ export function SettingsPage() {
             </div>
 
             <p className="text-[11px] text-zinc-500">
-              Note: To preserve verified reading lists, reviews, and follower links, handle updates are locked to once every 30 days.
+              Note: To preserve verified reading lists, reviews, and follower links, handle updates
+              are locked to once every 30 days.
             </p>
 
             <div className="flex items-center justify-end pt-2">
@@ -742,7 +753,8 @@ export function SettingsPage() {
           <div className="w-full max-w-md rounded-2xl border border-white/10 bg-[#12141a] p-6 shadow-2xl space-y-4">
             <h3 className="text-lg font-bold text-white">Delete all notes and restacks?</h3>
             <p className="text-xs sm:text-sm text-zinc-300">
-              This action will permanently delete all your published reading notes, restacks, and drafts. This action cannot be undone.
+              This action will permanently delete all your published reading notes, restacks, and
+              drafts. This action cannot be undone.
             </p>
 
             <div className="flex items-center justify-end gap-3 pt-2">
@@ -781,7 +793,8 @@ export function SettingsPage() {
             </div>
 
             <p className="text-xs sm:text-sm text-zinc-300">
-              Permanently delete your account and all associated reading history, reviews, likes, lists, and followers. This action is irreversible.
+              Permanently delete your account and all associated reading history, reviews, likes,
+              lists, and followers. This action is irreversible.
             </p>
 
             {deleteError && (

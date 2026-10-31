@@ -38,7 +38,9 @@ export function ForgotPasswordForm() {
         setSubmitError(error.message || "Failed to send reset email. Please try again.");
         return;
       }
-      setSubmitError("We couldn’t send the reset link. Please check your connection and try again.");
+      setSubmitError(
+        "We couldn’t send the reset link. Please check your connection and try again.",
+      );
     }
   }
 
@@ -64,7 +66,9 @@ export function ForgotPasswordForm() {
           Check your email
         </h2>
         <p className="text-sm text-gray-600 leading-relaxed max-w-sm mx-auto mb-6">
-          If an account exists for <strong className="text-gray-900 font-semibold">{submittedEmail}</strong>, we have sent instructions to reset your password. The link expires in 1 hour.
+          If an account exists for{" "}
+          <strong className="text-gray-900 font-semibold">{submittedEmail}</strong>, we have sent
+          instructions to reset your password. The link expires in 1 hour.
         </p>
 
         <div className="space-y-3">
@@ -147,4 +151,3 @@ export function ForgotPasswordForm() {
     </div>
   );
 }
-

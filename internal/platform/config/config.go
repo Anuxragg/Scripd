@@ -106,9 +106,20 @@ func Load() (Config, error) {
 		}
 	}
 
+	httpAddr := env("HTTP_ADDR", "")
+	if httpAddr == "" {
+		if port := os.Getenv("PORT"); port != "" {
+			httpAddr = ":" + port
+		} else {
+			httpAddr = ":8080"
+		}
+	} else if !strings.Contains(httpAddr, ":") {
+		httpAddr = ":" + httpAddr
+	}
+
 	cfg := Config{
 		Environment:        env("APP_ENV", "development"),
-		HTTPAddress:        env("HTTP_ADDR", ":8080"),
+		HTTPAddress:        httpAddr,
 		DatabaseURL:        databaseURL,
 		DBHost:             dbHost,
 		DBPort:             dbPort,

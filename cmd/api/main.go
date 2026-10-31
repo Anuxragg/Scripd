@@ -73,6 +73,7 @@ func run() error {
 	verificationMailer := email.NewSMTP(cfg.SMTPHost, cfg.SMTPPort, cfg.SMTPUsername, cfg.SMTPPassword, cfg.SMTPFrom, cfg.SMTPRequireTLS)
 	authSvc := authservice.New(authRepo, cfg.JWTAccessSecret,
 		authservice.WithEmailVerification(verificationMailer, cfg.WebBaseURL),
+		authservice.WithPasswordReset(verificationMailer, cfg.WebBaseURL),
 	)
 	authHTTP := authhandler.New(authSvc, cfg.Environment == "production", cfg.CORSAllowedOrigins, log)
 	sessionMiddleware := authmiddleware.New(authSvc, cfg.CORSAllowedOrigins, log)

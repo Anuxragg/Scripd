@@ -112,6 +112,14 @@ func (s *stubAuthService) DeleteAccount(context.Context, string, string) error {
 	return nil
 }
 
+func (s *stubAuthService) RequestPasswordReset(context.Context, string) error {
+	return nil
+}
+
+func (s *stubAuthService) ResetPassword(context.Context, string, string) error {
+	return nil
+}
+
 func TestAuthenticatedSessionClearingEndpoints(t *testing.T) {
 	tests := []struct {
 		name       string
@@ -165,5 +173,31 @@ func TestAuthenticatedSessionClearingEndpoints(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestPasswordResetEndpoints(t *testing.T) {
+	stub := &stubAuthService{}
+	router := chi.NewRouter()
+	New(stub, true, []string{"https://app.example"}, zerolog.Nop()).RegisterRoutes(router)
+
+	// Forgot password
+	forgotReq := httptest.NewRequest(http.MethodPost, "/auth/forgot-password", strings.NewReader(`{"email":"reader@example.com"}`))
+	forgotReq.Header.Set("Content-Type", "application/json")
+	forgotReq.Header.Set("Origin", "https://app.example")
+	forgotRes := httptest.NewRecorder()
+	router.ServeHTTP(forgotRes, forgotReq)
+	if forgotRes.Code != http.StatusOK {
+		t.Fatalf("forgot-password status = %d, want %d", forgotRes.Code, http.StatusOK)
+	}
+
+	// Reset password
+	resetReq := httptest.NewRequest(http.MethodPost, "/auth/reset-password", strings.NewReader(`{"token":"valid-token","new_password":"newPassword123"}`))
+	resetReq.Header.Set("Content-Type", "application/json")
+	resetReq.Header.Set("Origin", "https://app.example")
+	resetRes := httptest.NewRecorder()
+	router.ServeHTTP(resetRes, resetReq)
+	if resetRes.Code != http.StatusOK {
+		t.Fatalf("reset-password status = %d, want %d: %s", resetRes.Code, http.StatusOK, resetRes.Body.String())
 	}
 }

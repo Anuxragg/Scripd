@@ -34,6 +34,8 @@ type authService interface {
 	CurrentUser(context.Context, string) (service.Profile, error)
 	ChangePassword(context.Context, string, string, string) error
 	DeleteAccount(context.Context, string, string) error
+	RequestPasswordReset(context.Context, string) error
+	ResetPassword(context.Context, string, string) error
 }
 
 type emailVerificationService interface {
@@ -73,6 +75,15 @@ type deleteAccountRequest struct {
 	CurrentPassword string `json:"current_password"`
 }
 
+type forgotPasswordRequest struct {
+	Email string `json:"email"`
+}
+
+type resetPasswordRequest struct {
+	Token       string `json:"token"`
+	NewPassword string `json:"new_password"`
+}
+
 func New(service authService, secureCookies bool, origins []string, log zerolog.Logger) *Handler {
 	allowedOrigins := make(map[string]struct{}, len(origins))
 	for _, origin := range origins {
@@ -92,6 +103,8 @@ func (h *Handler) RegisterRoutes(router chi.Router) {
 		authRouter.With(platformmiddleware.RateLimit(3, time.Hour)).Post("/email/verification/resend", h.ResendEmailVerification)
 		authRouter.With(platformmiddleware.RateLimit(5, 15*time.Minute)).Post("/change-password", h.ChangePassword)
 		authRouter.With(platformmiddleware.RateLimit(5, 15*time.Minute)).Post("/delete-account", h.DeleteAccount)
+		authRouter.With(platformmiddleware.RateLimit(5, 15*time.Minute)).Post("/forgot-password", h.ForgotPassword)
+		authRouter.With(platformmiddleware.RateLimit(10, 15*time.Minute)).Post("/reset-password", h.ResetPassword)
 		authRouter.Get("/me", h.Me)
 	})
 }
@@ -303,6 +316,43 @@ func (h *Handler) DeleteAccount(w http.ResponseWriter, r *http.Request) {
 	response.WriteJSON(w, http.StatusOK, map[string]string{"status": "account_deleted"})
 }
 
+func (h *Handler) ForgotPassword(w http.ResponseWriter, r *http.Request) {
+	if !h.checkOrigin(w, r) {
+		return
+	}
+	var request forgotPasswordRequest
+	if !decodeJSON(w, r, &request) {
+		response.WriteError(w, r, http.StatusBadRequest, "invalid_request", "request payload is invalid")
+		return
+	}
+	if err := h.service.RequestPasswordReset(r.Context(), request.Email); err != nil {
+		h.writeFailure(w, r, err)
+		return
+	}
+	response.WriteJSON(w, http.StatusOK, map[string]string{
+		"message": "If that email address is registered, password reset instructions have been sent.",
+	})
+}
+
+func (h *Handler) ResetPassword(w http.ResponseWriter, r *http.Request) {
+	if !h.checkOrigin(w, r) {
+		return
+	}
+	var request resetPasswordRequest
+	if !decodeJSON(w, r, &request) {
+		response.WriteError(w, r, http.StatusBadRequest, "invalid_request", "request payload is invalid")
+		return
+	}
+	if err := h.service.ResetPassword(r.Context(), request.Token, request.NewPassword); err != nil {
+		h.writeFailure(w, r, err)
+		return
+	}
+	response.WriteJSON(w, http.StatusOK, map[string]string{
+		"status":  "password_reset",
+		"message": "Password has been reset successfully. Please log in with your new password.",
+	})
+}
+
 func (h *Handler) checkOrigin(w http.ResponseWriter, r *http.Request) bool {
 	origin := r.Header.Get("Origin")
 	if origin == "" {
@@ -356,6 +406,8 @@ func (h *Handler) writeFailure(w http.ResponseWriter, r *http.Request, err error
 		response.WriteError(w, r, http.StatusUnauthorized, "invalid_session", "session is invalid or expired")
 	case errors.Is(err, service.ErrInvalidVerificationToken):
 		response.WriteError(w, r, http.StatusBadRequest, "invalid_verification_token", "verification link is invalid or expired")
+	case errors.Is(err, service.ErrInvalidResetToken):
+		response.WriteError(w, r, http.StatusBadRequest, "invalid_reset_token", "password reset link is invalid or expired")
 	default:
 		h.log.Error().Err(err).Str("request_id", requestID(r)).Msg("authentication request failed")
 		response.WriteError(w, r, http.StatusInternalServerError, "internal_error", "an unexpected error occurred")

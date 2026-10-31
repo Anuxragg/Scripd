@@ -8,6 +8,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"log"
 	"net/mail"
 	"net/url"
 	"regexp"
@@ -26,6 +27,7 @@ var (
 	ErrInvalidCredentials       = errors.New("invalid credentials")
 	ErrInvalidSession           = errors.New("invalid session")
 	ErrInvalidVerificationToken = errors.New("invalid email verification token")
+	ErrInvalidResetToken        = errors.New("invalid or expired password reset token")
 	usernamePattern             = regexp.MustCompile(`^[a-z0-9_]{3,30}$`)
 	sessionIDPattern            = regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$`)
 )
@@ -34,6 +36,7 @@ const (
 	accessTokenLifetime       = 15 * time.Minute
 	refreshTokenLifetime      = 30 * 24 * time.Hour
 	emailVerificationLifetime = 24 * time.Hour
+	passwordResetLifetime     = 1 * time.Hour
 	accessTokenIssuer         = "scripd"
 	accessTokenAudience       = "scripd-web" //nolint:gosec // JWT audience identifier, not a credential
 	passwordMemory            = 64 * 1024
@@ -54,6 +57,8 @@ type Store interface {
 	RevokeSession(context.Context, string, []byte) error
 	IssueEmailVerification(context.Context, string, []byte, time.Time) (string, bool, error)
 	VerifyEmail(context.Context, []byte) error
+	IssuePasswordReset(context.Context, string, []byte, time.Time) (string, bool, error)
+	ResetPassword(context.Context, []byte, string) error
 	GetUserByID(context.Context, string) (authdomain.User, error)
 	UpdatePassword(context.Context, string, string) error
 	RevokeAllUserSessions(context.Context, string) error
@@ -64,15 +69,20 @@ type VerificationMailer interface {
 	SendVerification(context.Context, string, string) error
 }
 
+type PasswordResetMailer interface {
+	SendPasswordReset(context.Context, string, string) error
+}
+
 type Option func(*Service)
 
 type Service struct {
-	store              Store
-	accessKey          []byte
-	dummyHash          string
-	now                func() time.Time
-	verificationMailer VerificationMailer
-	webBaseURL         string
+	store               Store
+	accessKey           []byte
+	dummyHash           string
+	now                 func() time.Time
+	verificationMailer  VerificationMailer
+	passwordResetMailer PasswordResetMailer
+	webBaseURL          string
 }
 
 type Profile struct {
@@ -115,6 +125,16 @@ func New(store Store, accessSecret string, options ...Option) *Service {
 func WithEmailVerification(mailer VerificationMailer, webBaseURL string) Option {
 	return func(s *Service) {
 		s.verificationMailer = mailer
+		if prm, ok := mailer.(PasswordResetMailer); ok {
+			s.passwordResetMailer = prm
+		}
+		s.webBaseURL = strings.TrimRight(webBaseURL, "/")
+	}
+}
+
+func WithPasswordReset(mailer PasswordResetMailer, webBaseURL string) Option {
+	return func(s *Service) {
+		s.passwordResetMailer = mailer
 		s.webBaseURL = strings.TrimRight(webBaseURL, "/")
 	}
 }
@@ -198,6 +218,68 @@ func (s *Service) sendVerification(ctx context.Context, email, token string) err
 	}
 	link := s.webBaseURL + "/verify-email?token=" + url.QueryEscape(token)
 	return s.verificationMailer.SendVerification(ctx, email, link)
+}
+
+func (s *Service) RequestPasswordReset(ctx context.Context, email string) error {
+	email = strings.ToLower(strings.TrimSpace(email))
+	if len(email) > 254 {
+		return ErrInvalidInput
+	}
+	parsedEmail, err := mail.ParseAddress(email)
+	if err != nil || parsedEmail.Address != email {
+		return ErrInvalidInput
+	}
+	token, err := randomToken(32)
+	if err != nil {
+		return fmt.Errorf("create password reset token: %w", err)
+	}
+	tokenHash := sha256.Sum256([]byte(token))
+	recipientEmail, skipSend, err := s.store.IssuePasswordReset(ctx, email, tokenHash[:], s.now().UTC().Add(passwordResetLifetime))
+	if err != nil {
+		return fmt.Errorf("issue password reset token: %w", err)
+	}
+	if skipSend || recipientEmail == "" {
+		return nil
+	}
+	resetLink := s.webBaseURL + "/reset-password?token=" + url.QueryEscape(token)
+	log.Printf("[AUTH] Password reset requested for %s. Reset link: %s", recipientEmail, resetLink)
+	if err := s.sendPasswordReset(ctx, recipientEmail, token); err != nil {
+		log.Printf("[AUTH] Password reset email delivery failed for %s: %v", recipientEmail, err)
+	}
+	return nil
+}
+
+func (s *Service) ResetPassword(ctx context.Context, token, newPassword string) error {
+	token = strings.TrimSpace(token)
+	if token == "" {
+		return ErrInvalidResetToken
+	}
+	_, tokenHash, err := parseActionToken(token)
+	if err != nil {
+		return ErrInvalidResetToken
+	}
+	if utf8.RuneCountInString(newPassword) < minimumPasswordRunes || len(newPassword) > maximumPasswordBytes {
+		return ErrInvalidInput
+	}
+	passwordHash, err := hashPassword(newPassword)
+	if err != nil {
+		return fmt.Errorf("hash new password: %w", err)
+	}
+	if err := s.store.ResetPassword(ctx, tokenHash, passwordHash); err != nil {
+		if errors.Is(err, authdomain.ErrNotFound) {
+			return ErrInvalidResetToken
+		}
+		return fmt.Errorf("reset password: %w", err)
+	}
+	return nil
+}
+
+func (s *Service) sendPasswordReset(ctx context.Context, email, token string) error {
+	if s.passwordResetMailer == nil {
+		return nil
+	}
+	link := s.webBaseURL + "/reset-password?token=" + url.QueryEscape(token)
+	return s.passwordResetMailer.SendPasswordReset(ctx, email, link)
 }
 
 func (s *Service) Login(ctx context.Context, identifier, password string) (SessionResult, error) {

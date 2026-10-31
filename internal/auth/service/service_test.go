@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"errors"
 	"fmt"
+	"net/url"
 	"strings"
 	"testing"
 	"time"
@@ -110,6 +111,7 @@ type memoryStore struct {
 	user             authdomain.User
 	sessions         map[string]memorySession
 	verificationHash []byte
+	resetTokenHash   []byte
 	nextSession      int
 }
 
@@ -202,6 +204,29 @@ func (s *memoryStore) VerifyEmail(_ context.Context, tokenHash []byte) error {
 	}
 	s.user.EmailVerified = true
 	s.verificationHash = nil
+	return nil
+}
+
+func (s *memoryStore) IssuePasswordReset(_ context.Context, email string, tokenHash []byte, _ time.Time) (string, bool, error) {
+	if s.user.ID == "" || !strings.EqualFold(s.user.Email, email) {
+		return "", true, nil
+	}
+	s.resetTokenHash = append([]byte(nil), tokenHash...)
+	return s.user.Email, false, nil
+}
+
+func (s *memoryStore) ResetPassword(_ context.Context, tokenHash []byte, newPasswordHash string) error {
+	if s.user.ID == "" || string(s.resetTokenHash) != string(tokenHash) {
+		return authdomain.ErrNotFound
+	}
+	s.user.PasswordHash = newPasswordHash
+	s.resetTokenHash = nil
+	for k, v := range s.sessions {
+		if v.userID == s.user.ID {
+			v.revoked = true
+			s.sessions[k] = v
+		}
+	}
 	return nil
 }
 
@@ -321,5 +346,76 @@ func TestDeleteAccountSuccessAndRejectsWrongPassword(t *testing.T) {
 	// Verify user is gone
 	if _, err := svc.Login(t.Context(), "reader@example.com", "initial password 123"); !errors.Is(err, ErrInvalidCredentials) {
 		t.Fatalf("Login() after deletion error = %v, want ErrInvalidCredentials", err)
+	}
+}
+
+type stubResetMailer struct {
+	sentRecipient string
+	sentLink      string
+}
+
+func (m *stubResetMailer) SendPasswordReset(_ context.Context, recipient, link string) error {
+	m.sentRecipient = recipient
+	m.sentLink = link
+	return nil
+}
+
+func TestPasswordResetFlow(t *testing.T) {
+	store := newMemoryStore()
+	mailer := &stubResetMailer{}
+	svc := New(store, "test-access-secret-with-at-least-32-bytes", WithPasswordReset(mailer, "https://scripd.com"))
+
+	_, err := svc.Register(t.Context(), "reader_one", "reader@example.com", "", "initial password 123")
+	if err != nil {
+		t.Fatalf("Register() error = %v", err)
+	}
+
+	// Request password reset
+	if err := svc.RequestPasswordReset(t.Context(), "reader@example.com"); err != nil {
+		t.Fatalf("RequestPasswordReset() error = %v", err)
+	}
+	if mailer.sentRecipient != "reader@example.com" {
+		t.Fatalf("sentRecipient = %q, want reader@example.com", mailer.sentRecipient)
+	}
+	if !strings.HasPrefix(mailer.sentLink, "https://scripd.com/reset-password?token=") {
+		t.Fatalf("sentLink = %q, want prefix https://scripd.com/reset-password?token=", mailer.sentLink)
+	}
+
+	u, err := url.Parse(mailer.sentLink)
+	if err != nil {
+		t.Fatalf("url.Parse(sentLink) error = %v", err)
+	}
+	token := u.Query().Get("token")
+	if token == "" {
+		t.Fatal("token in reset link is empty")
+	}
+
+	// Reset with invalid short password
+	if err := svc.ResetPassword(t.Context(), token, "short"); !errors.Is(err, ErrInvalidInput) {
+		t.Fatalf("ResetPassword() short error = %v, want ErrInvalidInput", err)
+	}
+
+	// Reset with valid new password
+	if err := svc.ResetPassword(t.Context(), token, "new brand password 789"); err != nil {
+		t.Fatalf("ResetPassword() error = %v", err)
+	}
+
+	// Cannot reuse token
+	if err := svc.ResetPassword(t.Context(), token, "another brand password 101"); !errors.Is(err, ErrInvalidResetToken) {
+		t.Fatalf("ResetPassword() reuse error = %v, want ErrInvalidResetToken", err)
+	}
+
+	// Login with old password should fail
+	if _, err := svc.Login(t.Context(), "reader@example.com", "initial password 123"); !errors.Is(err, ErrInvalidCredentials) {
+		t.Fatalf("Login() old password error = %v, want ErrInvalidCredentials", err)
+	}
+
+	// Login with new password should succeed
+	loginResult, err := svc.Login(t.Context(), "reader@example.com", "new brand password 789")
+	if err != nil {
+		t.Fatalf("Login() new password error = %v", err)
+	}
+	if loginResult.User.Email != "reader@example.com" {
+		t.Fatalf("Login() email = %s, want reader@example.com", loginResult.User.Email)
 	}
 }

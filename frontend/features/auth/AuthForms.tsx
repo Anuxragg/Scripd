@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
@@ -231,16 +232,12 @@ export function LoginForm() {
         </button>
 
         <div className="pt-2 text-center">
-          <a
-            href="#forgot-password"
-            onClick={(e) => {
-              e.preventDefault();
-              alert("Password reset instructions will be sent to your registered email.");
-            }}
-            className="text-xs text-gray-500 hover:text-gray-900 underline underline-offset-2 transition"
+          <Link
+            href="/forgot-password"
+            className="text-xs text-gray-500 hover:text-purple-600 underline underline-offset-2 transition"
           >
             Forgot Password?
-          </a>
+          </Link>
         </div>
       </form>
     </div>

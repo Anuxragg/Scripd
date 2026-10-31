@@ -10,8 +10,12 @@ import {
   verifyEmail,
   changePassword,
   deleteAccount,
+  forgotPassword,
+  resetPassword,
   type ChangePasswordInput,
   type DeleteAccountInput,
+  type ForgotPasswordInput,
+  type ResetPasswordInput,
   type LoginInput,
   type Profile,
   type RegisterInput,
@@ -76,6 +80,20 @@ export function useDeleteAccount() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (input: DeleteAccountInput) => deleteAccount(input),
+    onSuccess: () => queryClient.setQueryData(currentUserKey, null),
+  });
+}
+
+export function useForgotPassword() {
+  return useMutation({
+    mutationFn: (input: ForgotPasswordInput) => forgotPassword(input),
+  });
+}
+
+export function useResetPassword() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (input: ResetPasswordInput) => resetPassword(input),
     onSuccess: () => queryClient.setQueryData(currentUserKey, null),
   });
 }

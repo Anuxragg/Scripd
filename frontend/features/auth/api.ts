@@ -35,6 +35,18 @@ const changePasswordResponseSchema = z.object({
   meta: z.record(z.string(), z.unknown()),
 });
 
+const forgotPasswordResponseSchema = z.object({
+  data: z.object({ message: z.string().optional() }).optional(),
+  meta: z.record(z.string(), z.unknown()).optional(),
+  message: z.string().optional(),
+});
+
+const resetPasswordResponseSchema = z.object({
+  data: z.object({ status: z.string().optional(), message: z.string().optional() }).optional(),
+  meta: z.record(z.string(), z.unknown()).optional(),
+  message: z.string().optional(),
+});
+
 const deleteAccountResponseSchema = z.object({
   data: z.object({ status: z.string() }),
   meta: z.record(z.string(), z.unknown()),
@@ -56,6 +68,15 @@ export type LoginInput = {
 
 export type ChangePasswordInput = {
   current_password: string;
+  new_password: string;
+};
+
+export type ForgotPasswordInput = {
+  email: string;
+};
+
+export type ResetPasswordInput = {
+  token: string;
   new_password: string;
 };
 
@@ -117,6 +138,22 @@ export function changePassword(input: ChangePasswordInput): Promise<void> {
     changePasswordResponseSchema,
     jsonRequest(input),
   ).then(() => undefined);
+}
+
+export function forgotPassword(input: ForgotPasswordInput): Promise<{ message?: string }> {
+  return apiRequest(
+    "/api/v1/auth/forgot-password",
+    forgotPasswordResponseSchema,
+    jsonRequest(input),
+  ).then((res) => ({ message: res.data?.message || res.message || "Instructions sent" }));
+}
+
+export function resetPassword(input: ResetPasswordInput): Promise<{ message?: string }> {
+  return apiRequest(
+    "/api/v1/auth/reset-password",
+    resetPasswordResponseSchema,
+    jsonRequest(input),
+  ).then((res) => ({ message: res.data?.message || res.message || "Password reset" }));
 }
 
 export function deleteAccount(input: DeleteAccountInput): Promise<void> {

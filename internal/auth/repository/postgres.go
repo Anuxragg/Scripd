@@ -239,6 +239,89 @@ func (r *Postgres) VerifyEmail(ctx context.Context, tokenHash []byte) error {
 	return nil
 }
 
+func (r *Postgres) IssuePasswordReset(ctx context.Context, email string, tokenHash []byte, expiresAt time.Time) (string, bool, error) {
+	tx, err := r.pool.BeginTx(ctx, pgx.TxOptions{})
+	if err != nil {
+		return "", false, fmt.Errorf("begin password reset token issue: %w", err)
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+
+	var userID, userEmail string
+	var dailyLimitReached bool
+	err = tx.QueryRow(ctx, `
+		SELECT id::text, email,
+		       (SELECT count(*) >= 5 FROM auth_action_tokens
+		        WHERE user_id = users.id AND purpose = 'password_reset'
+		          AND created_at > now() - interval '24 hours')
+		FROM users WHERE lower(email) = lower($1) FOR UPDATE`, email).Scan(&userID, &userEmail, &dailyLimitReached)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return "", true, nil
+	}
+	if err != nil {
+		return "", false, fmt.Errorf("load user for password reset: %w", err)
+	}
+	if dailyLimitReached {
+		if err := tx.Commit(ctx); err != nil {
+			return "", false, fmt.Errorf("commit password reset delivery limit check: %w", err)
+		}
+		return userEmail, true, nil
+	}
+	if _, err := tx.Exec(ctx, `
+		UPDATE auth_action_tokens SET consumed_at = now()
+		WHERE user_id = $1::uuid AND purpose = 'password_reset' AND consumed_at IS NULL`, userID); err != nil {
+		return "", false, fmt.Errorf("consume prior password reset tokens: %w", err)
+	}
+	if _, err := tx.Exec(ctx, `
+		INSERT INTO auth_action_tokens (user_id, purpose, token_hash, expires_at)
+		VALUES ($1::uuid, 'password_reset', $2, $3)`, userID, tokenHash, expiresAt); err != nil {
+		return "", false, fmt.Errorf("store password reset token: %w", err)
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return "", false, fmt.Errorf("commit password reset token issue: %w", err)
+	}
+	return userEmail, false, nil
+}
+
+func (r *Postgres) ResetPassword(ctx context.Context, tokenHash []byte, newPasswordHash string) error {
+	tx, err := r.pool.BeginTx(ctx, pgx.TxOptions{})
+	if err != nil {
+		return fmt.Errorf("begin password reset: %w", err)
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+
+	var userID string
+	err = tx.QueryRow(ctx, `
+		UPDATE auth_action_tokens SET consumed_at = now()
+		WHERE token_hash = $1 AND purpose = 'password_reset'
+		  AND consumed_at IS NULL AND expires_at > now()
+		RETURNING user_id::text`, tokenHash).Scan(&userID)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return authdomain.ErrNotFound
+	}
+	if err != nil {
+		return fmt.Errorf("consume password reset token: %w", err)
+	}
+	if _, err := tx.Exec(ctx, `
+		UPDATE users SET password_hash = $2, updated_at = now()
+		WHERE id = $1::uuid`, userID, newPasswordHash); err != nil {
+		return fmt.Errorf("update user password: %w", err)
+	}
+	if _, err := tx.Exec(ctx, `
+		UPDATE auth_sessions SET revoked_at = now()
+		WHERE user_id = $1::uuid AND revoked_at IS NULL`, userID); err != nil {
+		return fmt.Errorf("revoke all user sessions: %w", err)
+	}
+	if _, err := tx.Exec(ctx, `
+		UPDATE auth_action_tokens SET consumed_at = now()
+		WHERE user_id = $1::uuid AND purpose = 'password_reset' AND consumed_at IS NULL`, userID); err != nil {
+		return fmt.Errorf("consume remaining password reset tokens: %w", err)
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return fmt.Errorf("commit password reset: %w", err)
+	}
+	return nil
+}
+
 func (r *Postgres) GetUserByID(ctx context.Context, id string) (authdomain.User, error) {
 	query := `
 		SELECT id::text, username, email, COALESCE(display_name, ''), password_hash,

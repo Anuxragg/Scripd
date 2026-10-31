@@ -3,21 +3,15 @@ import { SiteHeader } from "@/components/SiteHeader";
 import { SettingsPage } from "@/features/settings/SettingsPage";
 
 export const metadata: Metadata = {
-  title: "Account Settings — Scripd",
-  description: "Manage your password, security, and account preferences on Scripd.",
+  title: "Settings — Scripd",
+  description: "Manage your account, profile, security, and preferences on Scripd.",
 };
 
 export default function Page() {
   return (
-    <div className="min-h-screen bg-[var(--background)]">
-      <SiteHeader theme="light" />
-      <main className="mx-auto max-w-2xl px-5 py-10 sm:px-8">
-        <header className="mb-8">
-          <h1 className="font-serif text-3xl font-bold text-[var(--ink)]">Account Settings</h1>
-          <p className="mt-1 text-sm text-[var(--muted)]">
-            Manage your account credentials, security settings, and personal data.
-          </p>
-        </header>
+    <div className="min-h-screen bg-[#0a0c10] text-white selection:bg-[#9333ea]/30 selection:text-white pb-32">
+      <SiteHeader theme="dark" />
+      <main className="mx-auto max-w-3xl px-4 sm:px-6 pt-8 sm:pt-12">
         <SettingsPage />
       </main>
     </div>

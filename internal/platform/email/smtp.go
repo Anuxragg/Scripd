@@ -28,23 +28,20 @@ func NewSMTP(host string, port int, username, password, from string, requireTLS 
 	}
 }
 
-func (s *SMTP) SendVerification(ctx context.Context, recipient, link string) error {
+func (s *SMTP) sendMail(ctx context.Context, recipient, subject, body string) error {
 	from, err := mail.ParseAddress(s.from)
 	if err != nil {
 		return fmt.Errorf("parse SMTP sender address: %w", err)
 	}
 	to, err := mail.ParseAddress(recipient)
 	if err != nil {
-		return fmt.Errorf("parse verification recipient address: %w", err)
-	}
-	if link == "" {
-		return fmt.Errorf("verification link is empty")
+		return fmt.Errorf("parse recipient address: %w", err)
 	}
 
-	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 	address := net.JoinHostPort(s.host, strconv.Itoa(s.port))
-	conn, err := (&net.Dialer{}).DialContext(ctx, "tcp", address)
+	conn, err := (&net.Dialer{Timeout: 5 * time.Second}).DialContext(ctx, "tcp", address)
 	if err != nil {
 		return fmt.Errorf("connect to SMTP server: %w", err)
 	}
@@ -87,25 +84,41 @@ func (s *SMTP) SendVerification(ctx context.Context, recipient, link string) err
 		return fmt.Errorf("set SMTP sender: %w", err)
 	}
 	if err := client.Rcpt(to.Address); err != nil {
-		return fmt.Errorf("set verification recipient: %w", err)
+		return fmt.Errorf("set recipient: %w", err)
 	}
 	writer, err := client.Data()
 	if err != nil {
 		return fmt.Errorf("start SMTP message: %w", err)
 	}
 	message := bytes.NewBuffer(nil)
-	fmt.Fprintf(message, "From: %s\r\nTo: %s\r\nSubject: Verify your Scripd email\r\n", from.String(), to.String())
+	fmt.Fprintf(message, "From: %s\r\nTo: %s\r\nSubject: %s\r\n", from.String(), to.String(), subject)
 	message.WriteString("MIME-Version: 1.0\r\nContent-Type: text/plain; charset=utf-8\r\n\r\n")
-	fmt.Fprintf(message, "Confirm your email address for Scripd by opening this link:\n\n%s\n\nThis link expires in 24 hours. If you did not create a Scripd account, you can ignore this message.\n", link)
+	message.WriteString(body)
 	if _, err := writer.Write(message.Bytes()); err != nil {
 		_ = writer.Close()
-		return fmt.Errorf("write verification email: %w", err)
+		return fmt.Errorf("write email: %w", err)
 	}
 	if err := writer.Close(); err != nil {
-		return fmt.Errorf("finish verification email: %w", err)
+		return fmt.Errorf("finish email: %w", err)
 	}
 	if err := client.Quit(); err != nil {
 		return fmt.Errorf("close SMTP session: %w", err)
 	}
 	return nil
+}
+
+func (s *SMTP) SendVerification(ctx context.Context, recipient, link string) error {
+	if link == "" {
+		return fmt.Errorf("verification link is empty")
+	}
+	body := fmt.Sprintf("Confirm your email address for Scripd by opening this link:\n\n%s\n\nThis link expires in 24 hours. If you did not create a Scripd account, you can ignore this message.\n", link)
+	return s.sendMail(ctx, recipient, "Verify your Scripd email", body)
+}
+
+func (s *SMTP) SendPasswordReset(ctx context.Context, recipient, link string) error {
+	if link == "" {
+		return fmt.Errorf("password reset link is empty")
+	}
+	body := fmt.Sprintf("Reset your Scripd password by opening this link:\n\n%s\n\nThis link expires in 1 hour. If you did not request a password reset, you can safely ignore this email.\n", link)
+	return s.sendMail(ctx, recipient, "Reset your Scripd password", body)
 }

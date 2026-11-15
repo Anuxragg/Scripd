@@ -8,6 +8,14 @@ const authorSummarySchema = z.object({
   avatar_url: z.string().nullable().optional(),
 });
 
+export const bookSummarySchema = z.object({
+  id: z.string(),
+  title: z.string(),
+  authors: z.array(z.string()).default([]),
+  cover_url: z.string().nullable().optional(),
+  published_year: z.number().nullable().optional(),
+});
+
 export const reviewSchema = z.object({
   id: z.string().uuid(),
   read_id: z.string().uuid(),
@@ -17,6 +25,7 @@ export const reviewSchema = z.object({
   contains_spoilers: z.boolean(),
   rating: z.number().nullable().optional(),
   author: authorSummarySchema,
+  book: bookSummarySchema.optional(),
   created_at: z.string(),
   updated_at: z.string(),
 });
@@ -87,6 +96,18 @@ export async function listReviewsByBook(
   if (limit) params.set("limit", String(limit));
   const query = params.toString() ? `?${params.toString()}` : "";
   return apiRequest(`/api/v1/books/${bookID}/reviews${query}`, reviewListResponseSchema);
+}
+
+export async function listReviewsByUser(
+  username: string,
+  cursor?: string,
+  limit = 20,
+): Promise<ReviewPage> {
+  const params = new URLSearchParams();
+  if (cursor) params.set("cursor", cursor);
+  if (limit) params.set("limit", String(limit));
+  const query = params.toString() ? `?${params.toString()}` : "";
+  return apiRequest(`/api/v1/users/${encodeURIComponent(username)}/reviews${query}`, reviewListResponseSchema);
 }
 
 export async function updateReview(reviewID: string, input: UpdateReviewInput): Promise<Review> {

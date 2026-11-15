@@ -15,122 +15,7 @@ import { AuthorAvatar } from "@/features/books/AuthorAvatar";
 import { WhereToReadSection } from "@/features/books/WhereToReadSection";
 import { useClientStorage } from "@/lib/useClientStorage";
 import { AddToListModal } from "@/features/lists/AddToListModal";
-
-interface CatalogBook {
-  id: string;
-  title: string;
-  subtitle?: string;
-  authors: string[];
-  year: number | string;
-  pages?: string;
-  publisher?: string;
-  language?: string;
-  coverURL?: string;
-  description: string;
-  openLibraryKey?: string;
-  openLibraryUrl?: string;
-  isbn13?: string;
-}
-
-// Canonical books in the Scripd catalog
-const KNOWN_BOOKS: Record<string, CatalogBook> = {
-  "secret-history": {
-    id: "secret-history",
-    title: "The Secret History",
-    subtitle: "A story of classics, obsession, and murder",
-    authors: ["Donna Tartt"],
-    year: 1992,
-    pages: "559 pages",
-    publisher: "Alfred A. Knopf",
-    language: "English",
-    coverURL: "https://covers.openlibrary.org/b/id/8231856-L.jpg",
-    description:
-      "Under the influence of their charismatic classics professor, a group of clever, eccentric misfits at an elite New England college discover a way of thinking and living that is a world away from the humdrum existence of their contemporaries. But when they go beyond the boundaries of normal morality, their lives change profoundly and forever.",
-    openLibraryKey: "OL8231856M",
-    openLibraryUrl: "https://openlibrary.org/works/OL15368947W",
-    isbn13: "9781400031702",
-  },
-  "norwegian-wood": {
-    id: "norwegian-wood",
-    title: "Norwegian Wood",
-    subtitle: "A nostalgic story of loss and memory",
-    authors: ["Haruki Murakami"],
-    year: 1987,
-    pages: "296 pages",
-    publisher: "Kodansha",
-    language: "Japanese / English",
-    coverURL: "https://covers.openlibrary.org/b/id/8235113-L.jpg",
-    description:
-      "Toru Watanabe hears his ex-girlfriend Naoko's favorite Beatles song, and everything comes rushing back: his first love, the loss of his best friend Kizuki, and the quiet yearning of college life in late 1960s Tokyo.",
-    openLibraryKey: "OL8235113M",
-    openLibraryUrl: "https://openlibrary.org/works/OL3142475W",
-    isbn13: "9780375704024",
-  },
-  "tomorrow-tomorrow": {
-    id: "tomorrow-tomorrow",
-    title: "Tomorrow, and Tomorrow, and Tomorrow",
-    subtitle: "A novel of creative collaboration and friendship",
-    authors: ["Gabrielle Zevin"],
-    year: 2022,
-    pages: "416 pages",
-    publisher: "Knopf",
-    language: "English",
-    coverURL: "https://covers.openlibrary.org/b/id/12847926-L.jpg",
-    description:
-      "Two friends—often in love, but never lovers—come together as creative partners in the world of video game design, where success brings them fame, joy, tragedy, duplicity, and, ultimately, a kind of immortality.",
-    openLibraryKey: "OL12847926M",
-    openLibraryUrl: "https://openlibrary.org/works/OL27213886W",
-    isbn13: "9780593321201",
-  },
-  dune: {
-    id: "dune",
-    title: "Dune",
-    subtitle: "The epic masterpiece of science fiction",
-    authors: ["Frank Herbert"],
-    year: 1965,
-    pages: "688 pages",
-    publisher: "Chilton Books",
-    language: "English",
-    coverURL: "https://covers.openlibrary.org/b/id/12836262-L.jpg",
-    description:
-      "Set on the desert planet Arrakis, Dune is the story of the boy Paul Atreides, heir to a noble family tasked with ruling an inhospitable world where the only thing of value is the 'spice' melange, a drug capable of extending life and enhancing consciousness.",
-    openLibraryKey: "OL12836262M",
-    openLibraryUrl: "https://openlibrary.org/works/OL893415W",
-    isbn13: "9780441172719",
-  },
-  "klara-and-the-sun": {
-    id: "klara-and-the-sun",
-    title: "Klara and the Sun",
-    subtitle: "A story about what it means to love",
-    authors: ["Kazuo Ishiguro"],
-    year: 2021,
-    pages: "303 pages",
-    publisher: "Faber & Faber",
-    language: "English",
-    coverURL: "https://covers.openlibrary.org/b/id/10522964-L.jpg",
-    description:
-      "Klara is an Artificial Friend with outstanding observational qualities, who, from her place in the store, watches carefully the behavior of those who come in to browse, and of those who pass on the street outside. She remains hopeful that a customer will soon choose her.",
-    openLibraryKey: "OL10522964M",
-    openLibraryUrl: "https://openlibrary.org/works/OL20847900W",
-    isbn13: "9780593318171",
-  },
-  pachinko: {
-    id: "pachinko",
-    title: "Pachinko",
-    subtitle: "An epic generational saga",
-    authors: ["Min Jin Lee"],
-    year: 2017,
-    pages: "496 pages",
-    publisher: "Grand Central Publishing",
-    language: "English",
-    coverURL: "https://covers.openlibrary.org/b/id/8315147-L.jpg",
-    description:
-      "In the early 1900s, teenaged Sunja, the adored daughter of a crippled fisherman, falls for a wealthy stranger at the seashore near her home in Korea. He promises her the world, but when she discovers she is pregnant—and that her lover is married—she refuses to be bought.",
-    openLibraryKey: "OL8315147M",
-    openLibraryUrl: "https://openlibrary.org/works/OL17849514W",
-    isbn13: "9781455563937",
-  },
-};
+import { findKnownBook } from "@/features/books/catalog";
 
 import type { Book } from "@/features/books/api";
 
@@ -254,8 +139,7 @@ export function BookDetailPage({
   }
 
   // Derive dynamic book details: prioritizes live API data, then canonical catalog books, then formatted fallback
-  const normalizedKey = bookID.toLowerCase();
-  const knownMatch = KNOWN_BOOKS[normalizedKey];
+  const knownMatch = findKnownBook(bookID);
 
   const apiBook = bookQuery.data ?? initialBook;
 
@@ -462,6 +346,8 @@ export function BookDetailPage({
                   <BookReviewsSection
                     bookID={bookID}
                     bookTitle={title}
+                    bookCover={coverURL}
+                    bookAuthors={authors}
                     bookYear={
                       typeof publishedYear === "number" || /^\d{4}$/.test(String(publishedYear))
                         ? String(publishedYear)

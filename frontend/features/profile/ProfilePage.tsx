@@ -23,8 +23,31 @@ import { notifyStorageChange, subscribeStorage } from "@/lib/useClientStorage";
 import { useMyLists, useUserLists } from "@/features/lists/hooks";
 import { ListCard } from "@/features/lists/ListCard";
 import { CreateListModal } from "@/features/lists/CreateListModal";
+import { useDeleteReview, useUserReviews } from "@/features/reviews/hooks";
+import type { Review } from "@/features/reviews/api";
+import { findKnownBook } from "@/features/books/catalog";
 
 type TabKey = "profile" | "activity" | "books" | "diary" | "reviews" | "want_to_read" | "lists";
+
+function renderLetterboxdStars(rating?: number | null): string {
+  if (!rating || rating <= 0) return "";
+  const fullStars = Math.floor(rating);
+  const halfStar = rating % 1 >= 0.5 ? "½" : "";
+  return "★".repeat(fullStars) + halfStar;
+}
+
+function formatLetterboxdDate(dateString: string): string {
+  try {
+    const d = new Date(dateString);
+    if (isNaN(d.getTime())) return dateString;
+    const day = String(d.getDate()).padStart(2, "0");
+    const month = d.toLocaleDateString("en-GB", { month: "short" });
+    const year = d.getFullYear();
+    return `${day} ${month} ${year}`;
+  } catch {
+    return dateString;
+  }
+}
 
 export function ProfilePage({ username }: { username: string }) {
   const userQuery = useCurrentUser();
@@ -46,6 +69,9 @@ export function ProfilePage({ username }: { username: string }) {
   const [linkCopied, setLinkCopied] = useState(false);
   const [createListOpen, setCreateListOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<TabKey>("profile");
+  const [filterRating, setFilterRating] = useState("all");
+  const [filterYear, setFilterYear] = useState("all");
+  const [reviewsSortBy, setReviewsSortBy] = useState<"recent" | "rating" | "popular">("recent");
   const favoriteBookSearch = useBookSearch(
     debouncedFavoriteBookName,
     1,
@@ -112,6 +138,92 @@ export function ProfilePage({ username }: { username: string }) {
   const displayLists = isOwner ? (myListsQuery.data ?? []) : (userListsQuery.data ?? []);
   const listsLoading = isOwner ? myListsQuery.isLoading : userListsQuery.isLoading;
 
+  const userReviewsQuery = useUserReviews(username);
+  const deleteReviewMutation = useDeleteReview();
+  const [revealedSpoilers, setRevealedSpoilers] = useState<Record<string, boolean>>({});
+
+  // Client-side local reviews fallback (from localStorage)
+  const localUserReviews = useSyncExternalStore(
+    subscribeStorage,
+    () => {
+      if (typeof window === "undefined") return "[]";
+      try {
+        const found: Review[] = [];
+        for (let i = 0; i < localStorage.length; i++) {
+          const key = localStorage.key(i);
+          if (key && key.startsWith("scripd_production_reviews_")) {
+            const raw = localStorage.getItem(key);
+            if (!raw) continue;
+            const parsed = JSON.parse(raw);
+            if (Array.isArray(parsed)) {
+              for (const item of parsed) {
+                if (
+                  item.author?.username?.toLowerCase() === normalizedUsername ||
+                  (isOwner && item.author?.username === "guest")
+                ) {
+                  const bookID = key.replace("scripd_production_reviews_", "");
+                  const known = findKnownBook(bookID) || (item.bookTitle ? findKnownBook(item.bookTitle) : null);
+                  const cleanBookTitle =
+                    item.bookTitle && item.bookTitle !== "Book" && item.bookTitle !== "Untitled Book"
+                      ? item.bookTitle
+                      : known?.title ||
+                        bookID.replace(/^(works\/|books\/)/i, "").replace(/[-_]/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+                  const cleanCover =
+                    item.bookCover ||
+                    known?.coverURL ||
+                    (bookID.startsWith("OL") ? `https://covers.openlibrary.org/b/id/${bookID}-L.jpg` : null);
+                  const cleanAuthors =
+                    item.bookAuthors && item.bookAuthors.length > 0
+                      ? item.bookAuthors
+                      : known?.authors || [];
+                  const cleanYear = item.bookYear
+                    ? parseInt(item.bookYear, 10) || undefined
+                    : known?.year || undefined;
+
+                  found.push({
+                    id: item.id,
+                    read_id: item.read_id || item.id,
+                    user_id: profile?.id || "",
+                    book_id: bookID,
+                    body: item.body,
+                    contains_spoilers: Boolean(item.containsSpoilers),
+                    rating: item.rating ?? null,
+                    author: {
+                      id: profile?.id || "",
+                      username: item.author.username,
+                      display_name: item.author.display_name || item.author.username,
+                      avatar_url: item.author.avatar_url || null,
+                    },
+                    book: {
+                      id: bookID,
+                      title: cleanBookTitle,
+                      authors: cleanAuthors,
+                      cover_url: cleanCover,
+                      published_year: cleanYear,
+                    },
+                    created_at: item.createdAt || new Date().toISOString(),
+                    updated_at: item.createdAt || new Date().toISOString(),
+                  });
+                }
+              }
+            }
+          }
+        }
+        return JSON.stringify(found);
+      } catch {
+        return "[]";
+      }
+    },
+    () => "[]",
+  );
+
+  let parsedLocalReviews: Review[] = [];
+  try {
+    parsedLocalReviews = JSON.parse(localUserReviews);
+  } catch {
+    parsedLocalReviews = [];
+  }
+
   // Load user's reads (for favorite books, recent activity, diary, want to read)
   const readsQuery = useReadEntries({ limit: 24 }, isOwner);
   const allReads: ReadEntry[] = readsQuery.data?.pages.flatMap((page) => page.data) ?? [];
@@ -128,6 +240,154 @@ export function ProfilePage({ username }: { username: string }) {
 
   // Recent activity (latest 4 entries)
   const recentActivity = allReads.slice(0, 4);
+
+  // Combined Reviews: API reviews + local storage reviews + diary notes (fallback)
+  const apiReviewItems = userReviewsQuery.data?.pages.flatMap((p) => p.data) ?? [];
+  const reviewMap = new Map<string, Review>();
+
+  for (const r of apiReviewItems) {
+    reviewMap.set(r.id, r);
+  }
+  for (const r of parsedLocalReviews) {
+    if (!reviewMap.has(r.id)) {
+      reviewMap.set(r.id, r);
+    }
+  }
+
+  // Also include reading diary entries with notes if they do not already have a review
+  for (const r of readBooks) {
+    if (r.notes && r.notes.trim()) {
+      const hasExisting = Array.from(reviewMap.values()).some((item) => item.book_id === r.book.id);
+      if (!hasExisting) {
+        reviewMap.set(`read-note-${r.id}`, {
+          id: `read-note-${r.id}`,
+          read_id: r.id,
+          user_id: profile?.id || "",
+          book_id: r.book.id,
+          body: r.notes.trim(),
+          contains_spoilers: false,
+          rating: r.rating ?? null,
+          author: {
+            id: profile?.id || "",
+            username: username,
+            display_name: profile?.display_name || username,
+            avatar_url: profile?.avatar_url || null,
+          },
+          book: {
+            id: r.book.id,
+            title: r.book.title,
+            authors: r.book.authors,
+            cover_url: r.book.cover_url || null,
+          },
+          created_at: r.updated_at || r.created_at,
+          updated_at: r.updated_at || r.created_at,
+        });
+      }
+    }
+  }
+
+  const displayReviews = Array.from(reviewMap.values())
+    .map((r) => {
+      const bID = r.book_id || r.book?.id || "";
+      const known = findKnownBook(bID) || (r.book?.title ? findKnownBook(r.book.title) : null);
+      const matchedRead = allReads.find(
+        (entry) =>
+          entry.book.id === bID ||
+          (r.book?.title && entry.book.title.toLowerCase() === r.book.title.toLowerCase()),
+      );
+      const resolvedTitle =
+        r.book?.title && r.book.title !== "Book" && r.book.title !== "Untitled Book"
+          ? r.book.title
+          : known?.title ||
+            matchedRead?.book.title ||
+            bID.replace(/^(works\/|books\/)/i, "").replace(/[-_]/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+      const resolvedCover =
+        r.book?.cover_url ||
+        known?.coverURL ||
+        matchedRead?.book.cover_url ||
+        (bID.startsWith("OL") ? `https://covers.openlibrary.org/b/id/${bID}-L.jpg` : null);
+      const resolvedAuthors =
+        r.book?.authors && r.book.authors.length > 0
+          ? r.book.authors
+          : known?.authors || matchedRead?.book.authors || [];
+      const resolvedYear =
+        r.book?.published_year || known?.year || matchedRead?.book.published_year || undefined;
+
+      return {
+        ...r,
+        book: {
+          id: bID,
+          title: resolvedTitle,
+          cover_url: resolvedCover,
+          authors: resolvedAuthors,
+          published_year: resolvedYear,
+        },
+      };
+    })
+    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+
+  async function handleDeleteReview(reviewID: string) {
+    if (!window.confirm("Are you sure you want to delete this review?")) return;
+    try {
+      if (!reviewID.startsWith("read-note-") && !reviewID.startsWith("review-")) {
+        await deleteReviewMutation.mutateAsync(reviewID);
+      }
+      // Clean up from localStorage if exists
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && key.startsWith("scripd_production_reviews_")) {
+          const raw = localStorage.getItem(key);
+          if (raw) {
+            try {
+              const list = JSON.parse(raw);
+              if (Array.isArray(list)) {
+                const nextList = list.filter((item: { id?: string }) => item.id !== reviewID);
+                if (nextList.length !== list.length) {
+                  localStorage.setItem(key, JSON.stringify(nextList));
+                }
+              }
+            } catch {
+              // ignore
+            }
+          }
+        }
+      }
+      notifyStorageChange();
+    } catch {
+      // ignore
+    }
+  }
+
+  const availableYears = Array.from(
+    new Set(
+      displayReviews
+        .map((r) => {
+          const d = new Date(r.created_at);
+          return isNaN(d.getTime()) ? null : d.getFullYear().toString();
+        })
+        .filter(Boolean) as string[],
+    ),
+  ).sort().reverse();
+
+  let filteredReviews = displayReviews;
+  if (filterRating !== "all") {
+    const minRating = parseFloat(filterRating);
+    filteredReviews = filteredReviews.filter(
+      (r) => typeof r.rating === "number" && r.rating >= minRating,
+    );
+  }
+  if (filterYear !== "all") {
+    filteredReviews = filteredReviews.filter((r) => {
+      const d = new Date(r.created_at);
+      return d.getFullYear().toString() === filterYear;
+    });
+  }
+  const sortedReviews = [...filteredReviews].sort((a, b) => {
+    if (reviewsSortBy === "rating") {
+      return (b.rating ?? 0) - (a.rating ?? 0);
+    }
+    return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+  });
 
   const localFollowed = useSyncExternalStore(
     subscribeStorage,
@@ -1028,12 +1288,204 @@ export function ProfilePage({ username }: { username: string }) {
           {/* TAB: REVIEWS */}
           {activeTab === "reviews" && (
             <div className="space-y-4">
-              <div className="border-b border-[#242c34] pb-2">
-                <h2 className="text-xs font-bold tracking-widest uppercase text-[#89a]">
-                  REVIEWS ({statsQuery.data?.reviews_count ?? 0})
+              {/* Header with Filters & Sort */}
+              <div className="flex flex-wrap items-center justify-between border-b border-[#242c34] pb-2 text-xs gap-3">
+                <h2 className="font-bold tracking-widest uppercase text-[#89a]">
+                  REVIEWS
                 </h2>
+
+                <div className="flex items-center gap-4 text-[#89a] text-[11px] font-semibold tracking-wider uppercase">
+                  {/* Rating filter */}
+                  <div className="relative">
+                    <select
+                      value={filterRating}
+                      onChange={(e) => setFilterRating(e.target.value)}
+                      className="bg-transparent text-[#89a] hover:text-white cursor-pointer uppercase appearance-none pr-3 outline-none"
+                    >
+                      <option value="all" className="bg-[#161a20] text-white">RATING ▾</option>
+                      <option value="5" className="bg-[#161a20] text-white">★★★★★ (5)</option>
+                      <option value="4" className="bg-[#161a20] text-white">★★★★ (4+)</option>
+                      <option value="3" className="bg-[#161a20] text-white">★★★ (3+)</option>
+                      <option value="2" className="bg-[#161a20] text-white">★★ (2+)</option>
+                      <option value="1" className="bg-[#161a20] text-white">★ (1+)</option>
+                    </select>
+                  </div>
+
+                  {/* Diary year filter */}
+                  {availableYears.length > 0 && (
+                    <div className="relative">
+                      <select
+                        value={filterYear}
+                        onChange={(e) => setFilterYear(e.target.value)}
+                        className="bg-transparent text-[#89a] hover:text-white cursor-pointer uppercase appearance-none pr-3 outline-none"
+                      >
+                        <option value="all" className="bg-[#161a20] text-white">DIARY YEAR ▾</option>
+                        {availableYears.map((yr) => (
+                          <option key={yr} value={yr} className="bg-[#161a20] text-white">
+                            {yr}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+
+                  {/* Sort dropdown */}
+                  <div className="relative">
+                    <select
+                      value={reviewsSortBy}
+                      onChange={(e) => setReviewsSortBy(e.target.value as "recent" | "rating" | "popular")}
+                      className="bg-transparent text-[#89a] hover:text-white cursor-pointer uppercase appearance-none pr-3 outline-none"
+                    >
+                      <option value="recent" className="bg-[#161a20] text-white">Sort by WHEN REVIEWED ▾</option>
+                      <option value="rating" className="bg-[#161a20] text-white">Sort by HIGHEST RATING ▾</option>
+                      <option value="popular" className="bg-[#161a20] text-white">Sort by POPULAR ▾</option>
+                    </select>
+                  </div>
+
+                  {/* Eye toggle icon */}
+                  <span className="text-[#89a] hover:text-white transition cursor-pointer select-none" title="Filter visibility">
+                    👁 ▾
+                  </span>
+                </div>
               </div>
-              <p className="text-sm text-[#89a]">User reviews appear here.</p>
+
+              {userReviewsQuery.isLoading ? (
+                <div className="space-y-6 py-4">
+                  {[...Array(3)].map((_, i) => (
+                    <div key={i} className="flex gap-4 sm:gap-5 pb-6 border-b border-[#242c34] animate-pulse">
+                      <div className="h-[106px] w-[70px] sm:h-[120px] sm:w-[80px] rounded-[3px] bg-white/5 shrink-0" />
+                      <div className="flex-1 space-y-2.5 py-1">
+                        <div className="h-6 w-1/3 bg-white/5 rounded" />
+                        <div className="h-4 w-1/4 bg-white/5 rounded" />
+                        <div className="h-4 w-2/3 bg-white/5 rounded" />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : sortedReviews.length > 0 ? (
+                <div className="divide-y divide-[#242c34]">
+                  {sortedReviews.map((rev) => {
+                    const starsText = renderLetterboxdStars(rev.rating);
+                    const readDateText = formatLetterboxdDate(rev.created_at);
+                    const publishedYear = rev.book?.published_year;
+
+                    return (
+                      <article key={rev.id} className="flex gap-4 sm:gap-5 py-6 group">
+                        {/* Poster / Book Cover */}
+                        <Link
+                          href={`/books/${rev.book?.id || rev.book_id}`}
+                          className="relative h-[106px] w-[70px] sm:h-[120px] sm:w-[80px] shrink-0 overflow-hidden rounded-[3px] border border-[#2c3440] bg-[#1a1f26] transition hover:border-[#00e054] hover:shadow-lg hover:shadow-green-950/20"
+                        >
+                          <BookCover
+                            coverURL={rev.book?.cover_url || undefined}
+                            title={rev.book?.title || "Book Cover"}
+                            authors={rev.book?.authors || []}
+                            className="h-full w-full rounded-none shadow-none"
+                          />
+                        </Link>
+
+                        {/* Review Content */}
+                        <div className="min-w-0 flex-1 flex flex-col justify-between">
+                          <div>
+                            {/* Title & Published Year */}
+                            <div className="flex items-baseline flex-wrap gap-2">
+                              <Link
+                                href={`/books/${rev.book?.id || rev.book_id}`}
+                                className="font-serif text-xl sm:text-2xl font-bold text-white hover:text-[#00e054] transition leading-tight"
+                              >
+                                {rev.book?.title || "Untitled Book"}
+                              </Link>
+                              {publishedYear && (
+                                <span className="font-serif text-base sm:text-lg text-[#89a] font-normal">
+                                  {publishedYear}
+                                </span>
+                              )}
+                            </div>
+
+                            {/* Rating Stars + Read Date */}
+                            <div className="mt-1 flex items-center gap-2 text-xs sm:text-[13px]">
+                              {starsText && (
+                                <span className="text-[#00e054] tracking-widest font-bold">
+                                  {starsText}
+                                </span>
+                              )}
+                              <span className="text-[#89a]">
+                                Read {readDateText}
+                              </span>
+                            </div>
+
+                            {/* Review Body */}
+                            <div className="mt-2.5">
+                              {rev.contains_spoilers && !revealedSpoilers[rev.id] ? (
+                                <div className="rounded border border-amber-500/20 bg-amber-500/10 px-3 py-2 text-xs flex items-center justify-between">
+                                  <span className="text-amber-300 font-sans">⚠️ This review contains spoilers.</span>
+                                  <button
+                                    type="button"
+                                    onClick={() => setRevealedSpoilers((prev) => ({ ...prev, [rev.id]: true }))}
+                                    className="text-amber-400 hover:text-amber-200 font-bold underline cursor-pointer ml-3 font-sans"
+                                  >
+                                    Reveal
+                                  </button>
+                                </div>
+                              ) : (
+                                <p className="font-serif text-[15px] sm:text-base text-[#c5d0db] leading-relaxed whitespace-pre-line">
+                                  {rev.body}
+                                </p>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Likes & Actions */}
+                          <div className="mt-3.5 flex items-center justify-between text-xs text-[#678]">
+                            <div className="flex items-center gap-1.5 hover:text-[#89a] transition">
+                              <svg
+                                className="w-3.5 h-3.5 fill-current text-white/40"
+                                viewBox="0 0 24 24"
+                              >
+                                <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />
+                              </svg>
+                              <span>No likes yet</span>
+                            </div>
+
+                            {isOwner && (
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteReview(rev.id)}
+                                className="text-zinc-600 hover:text-rose-400 transition cursor-pointer text-xs"
+                              >
+                                Delete
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      </article>
+                    );
+                  })}
+                </div>
+              ) : (
+                /* Empty state */
+                <div className="rounded-2xl border border-[#242c34] bg-[#161a20] p-12 text-center">
+                  <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-[#1e242c] text-xl text-[#89a]">
+                    ✎
+                  </div>
+                  <h3 className="mt-4 text-base font-bold text-white">
+                    {isOwner ? "You haven’t published any reviews yet." : `${profile?.display_name || username} hasn’t written any reviews yet.`}
+                  </h3>
+                  <p className="mt-1 text-xs text-[#89a]">
+                    {isOwner
+                      ? "Share your thoughts, ratings, and comments on the books you've read."
+                      : "When they review books, their thoughts and ratings will appear here."}
+                  </p>
+                  {isOwner && (
+                    <Link
+                      href="/books"
+                      className="mt-5 inline-flex rounded-xl bg-[#00e054] px-5 py-2 text-xs font-bold text-black hover:bg-[#00c549] transition"
+                    >
+                      Browse books to review
+                    </Link>
+                  )}
+                </div>
+              )}
             </div>
           )}
 

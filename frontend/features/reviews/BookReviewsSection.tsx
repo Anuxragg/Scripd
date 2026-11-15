@@ -30,6 +30,7 @@ import {
 import { useCreateRead, useReadEntries } from "@/features/reads/hooks";
 import { ReviewCommentsThread } from "@/features/reviews/ReviewCommentsThread";
 import { useClientStorage, subscribeStorage, notifyStorageChange } from "@/lib/useClientStorage";
+import { findKnownBook } from "@/features/books/catalog";
 
 let countsCacheRaw = "";
 let countsCacheSnapshot: Record<string, number> = {};
@@ -82,6 +83,10 @@ export interface DisplayReview {
   containsSpoilers?: boolean;
   isFollowing?: boolean;
   reactions?: Reaction[];
+  bookTitle?: string;
+  bookCover?: string;
+  bookAuthors?: string[];
+  bookYear?: string;
 }
 
 export const REVIEW_REACTION_OPTIONS: ReactionOption[] = [
@@ -193,12 +198,22 @@ function ReviewFollowButton({
 export function BookReviewsSection({
   bookID,
   bookTitle,
+  bookCover,
+  bookAuthors,
   bookYear,
 }: {
   bookID: string;
   bookTitle?: string;
+  bookCover?: string;
+  bookAuthors?: string[];
   bookYear?: string;
 }) {
+  const fallbackKnown = findKnownBook(bookID);
+  const resolvedTitle = bookTitle || fallbackKnown?.title;
+  const resolvedCover = bookCover || fallbackKnown?.coverURL;
+  const resolvedAuthors = bookAuthors || fallbackKnown?.authors;
+  const resolvedYear = bookYear || (fallbackKnown?.year ? String(fallbackKnown.year) : undefined);
+
   const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(bookID);
 
   const userQuery = useCurrentUser();
@@ -506,6 +521,10 @@ export function BookReviewsSection({
         isLiked: false,
         containsSpoilers: containsSpoilers,
         isFollowing: true,
+        bookTitle: resolvedTitle,
+        bookCover: resolvedCover,
+        bookAuthors: resolvedAuthors,
+        bookYear: resolvedYear,
       };
 
       setLocalReviews((prev) => [newReview, ...prev]);

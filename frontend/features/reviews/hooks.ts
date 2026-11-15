@@ -6,6 +6,7 @@ import {
   deleteReview,
   getReviewForRead,
   listReviewsByBook,
+  listReviewsByUser,
   updateReview,
   getReviewSocialStats,
   likeReview,
@@ -24,6 +25,17 @@ export function useBookReviews(bookID: string, enabled = true) {
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (lastPage) => lastPage.meta.next_cursor ?? undefined,
     enabled: Boolean(bookID) && enabled,
+    staleTime: 30_000,
+  });
+}
+
+export function useUserReviews(username: string, enabled = true) {
+  return useInfiniteQuery({
+    queryKey: ["reviews", "user", username],
+    queryFn: ({ pageParam }) => listReviewsByUser(username, pageParam),
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (lastPage) => lastPage.meta.next_cursor ?? undefined,
+    enabled: Boolean(username) && enabled,
     staleTime: 30_000,
   });
 }

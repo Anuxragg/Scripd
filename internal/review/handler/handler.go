@@ -33,6 +33,7 @@ type reviewService interface {
 	Update(ctx context.Context, userID, id string, input review.UpdateInput) (review.Review, error)
 	Delete(ctx context.Context, userID, id string) error
 	ListByBook(ctx context.Context, bookID string, cursor string, limit int) (service.ListPage, error)
+	ListByUser(ctx context.Context, usernameOrID string, cursor string, limit int) (service.ListPage, error)
 }
 
 type Handler struct {
@@ -68,6 +69,7 @@ func (h *Handler) RegisterRoutes(router chi.Router) {
 	// Public routes
 	router.Get("/reviews/{reviewID}", h.Get)
 	router.Get("/books/{bookID}/reviews", h.ListByBook)
+	router.Get("/users/{username}/reviews", h.ListByUser)
 
 	// Protected routes (creation and editing require a verified account)
 	router.With(h.requireVerified, mutationLimit).Post("/reviews", h.Create)
@@ -232,6 +234,44 @@ func (h *Handler) writeError(w http.ResponseWriter, r *http.Request, err error) 
 		h.log.Error().Err(err).Str("request_id", chimiddleware.GetReqID(r.Context())).Msg("review request failed")
 		response.WriteError(w, r, http.StatusInternalServerError, "internal_error", "an unexpected error occurred")
 	}
+}
+
+func (h *Handler) ListByUser(w http.ResponseWriter, r *http.Request) {
+	username := strings.TrimSpace(chi.URLParam(r, "username"))
+	if username == "" {
+		writeInvalidRequest(w, r)
+		return
+	}
+
+	cursor := r.URL.Query().Get("cursor")
+	limit := 20
+	if rawLimit := r.URL.Query().Get("limit"); rawLimit != "" {
+		parsed, err := strconv.Atoi(rawLimit)
+		if err == nil && parsed > 0 {
+			limit = parsed
+		}
+	}
+
+	ctx, cancel := context.WithTimeout(r.Context(), reviewRequestTimeout)
+	defer cancel()
+
+	page, err := h.service.ListByUser(ctx, username, cursor, limit)
+	if err != nil {
+		h.writeError(w, r, err)
+		return
+	}
+
+	meta := map[string]any{
+		"has_more":    page.HasMore,
+		"next_cursor": page.NextCursor,
+	}
+
+	reviews := page.Reviews
+	if reviews == nil {
+		reviews = []review.Review{}
+	}
+
+	response.WriteJSONWithMeta(w, http.StatusOK, reviews, meta)
 }
 
 func decodeJSON(w http.ResponseWriter, r *http.Request, target any) bool {

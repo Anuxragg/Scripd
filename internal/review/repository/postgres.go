@@ -24,7 +24,7 @@ const reviewSelectFields = `
 	r.created_at, r.updated_at,
 	u.id, u.username, u.display_name, u.avatar_url,
 	rd.rating::double precision,
-	b.id, b.title, b.authors, b.cover_url
+	b.id, b.title, b.authors, b.cover_url, b.published_year
 `
 
 const reviewJoinTables = `
@@ -41,7 +41,7 @@ func scanReview(row pgx.Row) (review.Review, error) {
 		&rev.CreatedAt, &rev.UpdatedAt,
 		&rev.Author.ID, &rev.Author.Username, &rev.Author.DisplayName, &rev.Author.AvatarURL,
 		&rev.Rating,
-		&rev.Book.ID, &rev.Book.Title, &rev.Book.Authors, &rev.Book.CoverURL,
+		&rev.Book.ID, &rev.Book.Title, &rev.Book.Authors, &rev.Book.CoverURL, &rev.Book.PublishedYear,
 	)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -143,3 +143,40 @@ func (p *Postgres) ListByBook(ctx context.Context, bookID string, opts review.Li
 	}
 	return reviews, nil
 }
+
+func (p *Postgres) ListByUser(ctx context.Context, usernameOrID string, opts review.ListOptions) ([]review.Review, error) {
+	limit := opts.Limit
+	if limit <= 0 || limit > 50 {
+		limit = 20
+	}
+
+	query := `SELECT ` + reviewSelectFields + reviewJoinTables + `
+		WHERE (LOWER(u.username) = LOWER($1) OR r.user_id::text = $1)`
+	args := []any{usernameOrID}
+
+	if opts.CursorCreatedAt != nil && opts.CursorID != "" {
+		query += ` AND (r.created_at, r.id) < ($2, $3)`
+		args = append(args, *opts.CursorCreatedAt, opts.CursorID)
+	}
+	query += fmt.Sprintf(` ORDER BY r.created_at DESC, r.id DESC LIMIT %d`, limit)
+
+	rows, err := p.pool.Query(ctx, query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("list reviews by user: %w", err)
+	}
+	defer rows.Close()
+
+	var reviews []review.Review
+	for rows.Next() {
+		rev, err := scanReview(rows)
+		if err != nil {
+			return nil, fmt.Errorf("scan review: %w", err)
+		}
+		reviews = append(reviews, rev)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("reviews rows: %w", err)
+	}
+	return reviews, nil
+}
+

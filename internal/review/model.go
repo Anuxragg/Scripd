@@ -20,10 +20,11 @@ type AuthorSummary struct {
 }
 
 type BookSummary struct {
-	ID       string   `json:"id"`
-	Title    string   `json:"title"`
-	Authors  []string `json:"authors"`
-	CoverURL *string  `json:"cover_url,omitempty"`
+	ID            string   `json:"id"`
+	Title         string   `json:"title"`
+	Authors       []string `json:"authors"`
+	CoverURL      *string  `json:"cover_url,omitempty"`
+	PublishedYear *int     `json:"published_year,omitempty"`
 }
 
 type Review struct {

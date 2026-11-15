@@ -50,6 +50,11 @@ func (m *mockReviewStore) ListByBook(ctx context.Context, bookID string, opts re
 	return m.reviews, nil
 }
 
+func (m *mockReviewStore) ListByUser(ctx context.Context, usernameOrID string, opts review.ListOptions) ([]review.Review, error) {
+	return m.reviews, nil
+}
+
+
 type mockReadStore struct {
 	entry read.Entry
 	err   error

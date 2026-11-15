@@ -31,6 +31,7 @@ type ReviewStore interface {
 	Update(ctx context.Context, userID, id string, input review.UpdateInput) (review.Review, error)
 	Delete(ctx context.Context, userID, id string) error
 	ListByBook(ctx context.Context, bookID string, opts review.ListOptions) ([]review.Review, error)
+	ListByUser(ctx context.Context, usernameOrID string, opts review.ListOptions) ([]review.Review, error)
 }
 
 type ReadStore interface {
@@ -169,6 +170,60 @@ func (s *Service) ListByBook(ctx context.Context, bookID string, cursor string, 
 		HasMore:    hasMore,
 	}, nil
 }
+
+func (s *Service) ListByUser(ctx context.Context, usernameOrID string, cursor string, limit int) (ListPage, error) {
+	usernameOrID = strings.TrimSpace(usernameOrID)
+	if usernameOrID == "" {
+		return ListPage{}, review.ErrInvalidInput
+	}
+
+	if limit <= 0 {
+		limit = DefaultPageSize
+	}
+	if limit > MaximumPageSize {
+		limit = MaximumPageSize
+	}
+
+	opts := review.ListOptions{
+		Limit: limit + 1,
+	}
+
+	if cursor != "" {
+		c, err := decodeCursor(cursor)
+		if err != nil {
+			return ListPage{}, review.ErrInvalidInput
+		}
+		opts.CursorCreatedAt = &c.CreatedAt
+		opts.CursorID = c.ID
+	}
+
+	items, err := s.reviews.ListByUser(ctx, usernameOrID, opts)
+	if err != nil {
+		return ListPage{}, err
+	}
+
+	hasMore := len(items) > limit
+	if hasMore {
+		items = items[:limit]
+	}
+
+	var nextCursor *string
+	if hasMore && len(items) > 0 {
+		last := items[len(items)-1]
+		encoded := encodeCursor(cursorPayload{
+			CreatedAt: last.CreatedAt,
+			ID:        last.ID,
+		})
+		nextCursor = &encoded
+	}
+
+	return ListPage{
+		Reviews:    items,
+		NextCursor: nextCursor,
+		HasMore:    hasMore,
+	}, nil
+}
+
 
 func isValidUUID(value string) bool {
 	return uuidPattern.MatchString(strings.TrimSpace(value))

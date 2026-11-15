@@ -34,7 +34,7 @@ func (p *Postgres) GetUserIDByUsername(ctx context.Context, username string) (st
 func (p *Postgres) CreateList(ctx context.Context, userID string, input list.CreateListInput) (list.List, error) {
 	var l list.List
 	l.SampleCovers = []string{}
-	l.Items = []list.ListItem{}
+	l.Items = []list.Item{}
 
 	err := p.pool.QueryRow(ctx, `
 		WITH inserted AS (
@@ -62,7 +62,7 @@ func (p *Postgres) CreateList(ctx context.Context, userID string, input list.Cre
 func (p *Postgres) GetListByID(ctx context.Context, listID string, viewerID string) (list.List, error) {
 	var l list.List
 	l.SampleCovers = []string{}
-	l.Items = []list.ListItem{}
+	l.Items = []list.Item{}
 
 	err := p.pool.QueryRow(ctx, `
 		SELECT 
@@ -107,7 +107,7 @@ func (p *Postgres) GetListByID(ctx context.Context, listID string, viewerID stri
 	defer rows.Close()
 
 	for rows.Next() {
-		var item list.ListItem
+		var item list.Item
 		var publishedYear *int16
 		err := rows.Scan(
 			&item.ListID, &item.BookID, &item.Position, &item.Notes, &item.CreatedAt,
@@ -299,27 +299,27 @@ func (p *Postgres) resolveBookUUID(ctx context.Context, bookID string, title *st
 		bookTitle, "/works/"+cleanKey,
 	).Scan(&resolvedID)
 	if stubErr != nil {
-		return cleanID, nil
+		return "", fmt.Errorf("resolve book: %w", stubErr)
 	}
 	return resolvedID, nil
 }
 
-func (p *Postgres) AddBookToList(ctx context.Context, listID string, userID string, input list.AddBookInput) (list.ListItem, error) {
+func (p *Postgres) AddBookToList(ctx context.Context, listID string, userID string, input list.AddBookInput) (list.Item, error) {
 	var ownerID string
 	err := p.pool.QueryRow(ctx, "SELECT user_id FROM book_lists WHERE id = $1", listID).Scan(&ownerID)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return list.ListItem{}, list.ErrNotFound
+			return list.Item{}, list.ErrNotFound
 		}
-		return list.ListItem{}, fmt.Errorf("check list ownership: %w", err)
+		return list.Item{}, fmt.Errorf("check list ownership: %w", err)
 	}
 	if ownerID != userID {
-		return list.ListItem{}, list.ErrForbidden
+		return list.Item{}, list.ErrForbidden
 	}
 
 	bookUUID, err := p.resolveBookUUID(ctx, input.BookID, input.Title)
 	if err != nil {
-		return list.ListItem{}, fmt.Errorf("resolve book uuid: %w", err)
+		return list.Item{}, fmt.Errorf("resolve book uuid: %w", err)
 	}
 
 	// Calculate position if not provided
@@ -334,11 +334,11 @@ func (p *Postgres) AddBookToList(ctx context.Context, listID string, userID stri
 			listID,
 		).Scan(&position)
 		if err != nil {
-			return list.ListItem{}, fmt.Errorf("determine position: %w", err)
+			return list.Item{}, fmt.Errorf("determine position: %w", err)
 		}
 	}
 
-	var item list.ListItem
+	var item list.Item
 	var publishedYear *int16
 	err = p.pool.QueryRow(ctx, `
 		WITH inserted AS (
@@ -359,7 +359,7 @@ func (p *Postgres) AddBookToList(ctx context.Context, listID string, userID stri
 		&item.Book.ID, &item.Book.Title, &item.Book.Authors, &item.Book.CoverURL, &publishedYear,
 	)
 	if err != nil {
-		return list.ListItem{}, fmt.Errorf("insert book into list: %w", err)
+		return list.Item{}, fmt.Errorf("insert book into list: %w", err)
 	}
 
 	if publishedYear != nil {

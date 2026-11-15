@@ -16,7 +16,7 @@ type mockReviewStore struct {
 	reviews   []review.Review
 }
 
-func (m *mockReviewStore) Create(ctx context.Context, userID, bookID string, input review.CreateInput) (review.Review, error) {
+func (m *mockReviewStore) Create(_ context.Context, userID, bookID string, input review.CreateInput) (review.Review, error) {
 	if m.createErr != nil {
 		return review.Review{}, m.createErr
 	}
@@ -30,37 +30,36 @@ func (m *mockReviewStore) Create(ctx context.Context, userID, bookID string, inp
 	}, nil
 }
 
-func (m *mockReviewStore) GetByID(ctx context.Context, id string) (review.Review, error) {
+func (m *mockReviewStore) GetByID(_ context.Context, _ string) (review.Review, error) {
 	return review.Review{}, nil
 }
 
-func (m *mockReviewStore) GetByReadID(ctx context.Context, readID string) (review.Review, error) {
+func (m *mockReviewStore) GetByReadID(_ context.Context, _ string) (review.Review, error) {
 	return review.Review{}, nil
 }
 
-func (m *mockReviewStore) Update(ctx context.Context, userID, id string, input review.UpdateInput) (review.Review, error) {
+func (m *mockReviewStore) Update(_ context.Context, _, id string, input review.UpdateInput) (review.Review, error) {
 	return review.Review{ID: id, Body: input.Body}, nil
 }
 
-func (m *mockReviewStore) Delete(ctx context.Context, userID, id string) error {
+func (m *mockReviewStore) Delete(_ context.Context, _, _ string) error {
 	return nil
 }
 
-func (m *mockReviewStore) ListByBook(ctx context.Context, bookID string, opts review.ListOptions) ([]review.Review, error) {
+func (m *mockReviewStore) ListByBook(_ context.Context, _ string, _ review.ListOptions) ([]review.Review, error) {
 	return m.reviews, nil
 }
 
-func (m *mockReviewStore) ListByUser(ctx context.Context, usernameOrID string, opts review.ListOptions) ([]review.Review, error) {
+func (m *mockReviewStore) ListByUser(_ context.Context, _ string, _ review.ListOptions) ([]review.Review, error) {
 	return m.reviews, nil
 }
-
 
 type mockReadStore struct {
 	entry read.Entry
 	err   error
 }
 
-func (m *mockReadStore) GetByID(ctx context.Context, userID, entryID string) (read.Entry, error) {
+func (m *mockReadStore) GetByID(_ context.Context, _, _ string) (read.Entry, error) {
 	if m.err != nil {
 		return read.Entry{}, m.err
 	}

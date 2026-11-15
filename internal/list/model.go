@@ -27,7 +27,7 @@ type BookSummary struct {
 	PublishedYear *int     `json:"published_year,omitempty"`
 }
 
-type ListItem struct {
+type Item struct {
 	ListID    string      `json:"list_id"`
 	BookID    string      `json:"book_id"`
 	Position  int         `json:"position"`
@@ -45,7 +45,7 @@ type List struct {
 	ItemCount    int           `json:"item_count"`
 	SampleCovers []string      `json:"sample_covers"`
 	Author       AuthorSummary `json:"author"`
-	Items        []ListItem    `json:"items,omitempty"`
+	Items        []Item        `json:"items,omitempty"`
 	CreatedAt    time.Time     `json:"created_at"`
 	UpdatedAt    time.Time     `json:"updated_at"`
 }

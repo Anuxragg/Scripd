@@ -272,7 +272,7 @@ func (s *memoryStore) DeleteUser(_ context.Context, userID string) error {
 	return nil
 }
 
-func (s *memoryStore) GetOrCreateGoogleUser(_ context.Context, googleID, email, name, avatarURL string) (authdomain.User, error) {
+func (s *memoryStore) GetOrCreateGoogleUser(_ context.Context, googleID, email, name, _ string) (authdomain.User, error) {
 	if s.user.ID != "" && (s.user.Email == email || (s.user.GoogleID != nil && *s.user.GoogleID == googleID)) {
 		s.user.GoogleID = &googleID
 		s.user.EmailVerified = true

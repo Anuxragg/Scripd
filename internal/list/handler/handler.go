@@ -31,7 +31,7 @@ type listService interface {
 	GetMyLists(ctx context.Context, userID string) ([]list.List, error)
 	UpdateList(ctx context.Context, listID, userID string, input list.UpdateListInput) (list.List, error)
 	DeleteList(ctx context.Context, listID, userID string) error
-	AddBookToList(ctx context.Context, listID, userID string, input list.AddBookInput) (list.ListItem, error)
+	AddBookToList(ctx context.Context, listID, userID string, input list.AddBookInput) (list.Item, error)
 	RemoveBookFromList(ctx context.Context, listID, userID, bookID string) error
 	UpdateListItem(ctx context.Context, listID, userID, bookID string, input list.UpdateItemInput) error
 	GetBookListsForUser(ctx context.Context, userID, bookID string) ([]string, error)

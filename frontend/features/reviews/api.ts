@@ -107,7 +107,10 @@ export async function listReviewsByUser(
   if (cursor) params.set("cursor", cursor);
   if (limit) params.set("limit", String(limit));
   const query = params.toString() ? `?${params.toString()}` : "";
-  return apiRequest(`/api/v1/users/${encodeURIComponent(username)}/reviews${query}`, reviewListResponseSchema);
+  return apiRequest(
+    `/api/v1/users/${encodeURIComponent(username)}/reviews${query}`,
+    reviewListResponseSchema,
+  );
 }
 
 export async function updateReview(reviewID: string, input: UpdateReviewInput): Promise<Review> {

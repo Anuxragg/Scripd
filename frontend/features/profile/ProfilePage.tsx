@@ -162,16 +162,25 @@ export function ProfilePage({ username }: { username: string }) {
                   (isOwner && item.author?.username === "guest")
                 ) {
                   const bookID = key.replace("scripd_production_reviews_", "");
-                  const known = findKnownBook(bookID) || (item.bookTitle ? findKnownBook(item.bookTitle) : null);
+                  const known =
+                    findKnownBook(bookID) ||
+                    (item.bookTitle ? findKnownBook(item.bookTitle) : null);
                   const cleanBookTitle =
-                    item.bookTitle && item.bookTitle !== "Book" && item.bookTitle !== "Untitled Book"
+                    item.bookTitle &&
+                    item.bookTitle !== "Book" &&
+                    item.bookTitle !== "Untitled Book"
                       ? item.bookTitle
                       : known?.title ||
-                        bookID.replace(/^(works\/|books\/)/i, "").replace(/[-_]/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+                        bookID
+                          .replace(/^(works\/|books\/)/i, "")
+                          .replace(/[-_]/g, " ")
+                          .replace(/\b\w/g, (c) => c.toUpperCase());
                   const cleanCover =
                     item.bookCover ||
                     known?.coverURL ||
-                    (bookID.startsWith("OL") ? `https://covers.openlibrary.org/b/id/${bookID}-L.jpg` : null);
+                    (bookID.startsWith("OL")
+                      ? `https://covers.openlibrary.org/b/id/${bookID}-L.jpg`
+                      : null);
                   const cleanAuthors =
                     item.bookAuthors && item.bookAuthors.length > 0
                       ? item.bookAuthors
@@ -300,7 +309,10 @@ export function ProfilePage({ username }: { username: string }) {
           ? r.book.title
           : known?.title ||
             matchedRead?.book.title ||
-            bID.replace(/^(works\/|books\/)/i, "").replace(/[-_]/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+            bID
+              .replace(/^(works\/|books\/)/i, "")
+              .replace(/[-_]/g, " ")
+              .replace(/\b\w/g, (c) => c.toUpperCase());
       const resolvedCover =
         r.book?.cover_url ||
         known?.coverURL ||
@@ -367,7 +379,9 @@ export function ProfilePage({ username }: { username: string }) {
         })
         .filter(Boolean) as string[],
     ),
-  ).sort().reverse();
+  )
+    .sort()
+    .reverse();
 
   let filteredReviews = displayReviews;
   if (filterRating !== "all") {
@@ -1290,9 +1304,7 @@ export function ProfilePage({ username }: { username: string }) {
             <div className="space-y-4">
               {/* Header with Filters & Sort */}
               <div className="flex flex-wrap items-center justify-between border-b border-[#242c34] pb-2 text-xs gap-3">
-                <h2 className="font-bold tracking-widest uppercase text-[#89a]">
-                  REVIEWS
-                </h2>
+                <h2 className="font-bold tracking-widest uppercase text-[#89a]">REVIEWS</h2>
 
                 <div className="flex items-center gap-4 text-[#89a] text-[11px] font-semibold tracking-wider uppercase">
                   {/* Rating filter */}
@@ -1302,12 +1314,24 @@ export function ProfilePage({ username }: { username: string }) {
                       onChange={(e) => setFilterRating(e.target.value)}
                       className="bg-transparent text-[#89a] hover:text-white cursor-pointer uppercase appearance-none pr-3 outline-none"
                     >
-                      <option value="all" className="bg-[#161a20] text-white">RATING ▾</option>
-                      <option value="5" className="bg-[#161a20] text-white">★★★★★ (5)</option>
-                      <option value="4" className="bg-[#161a20] text-white">★★★★ (4+)</option>
-                      <option value="3" className="bg-[#161a20] text-white">★★★ (3+)</option>
-                      <option value="2" className="bg-[#161a20] text-white">★★ (2+)</option>
-                      <option value="1" className="bg-[#161a20] text-white">★ (1+)</option>
+                      <option value="all" className="bg-[#161a20] text-white">
+                        RATING ▾
+                      </option>
+                      <option value="5" className="bg-[#161a20] text-white">
+                        ★★★★★ (5)
+                      </option>
+                      <option value="4" className="bg-[#161a20] text-white">
+                        ★★★★ (4+)
+                      </option>
+                      <option value="3" className="bg-[#161a20] text-white">
+                        ★★★ (3+)
+                      </option>
+                      <option value="2" className="bg-[#161a20] text-white">
+                        ★★ (2+)
+                      </option>
+                      <option value="1" className="bg-[#161a20] text-white">
+                        ★ (1+)
+                      </option>
                     </select>
                   </div>
 
@@ -1319,7 +1343,9 @@ export function ProfilePage({ username }: { username: string }) {
                         onChange={(e) => setFilterYear(e.target.value)}
                         className="bg-transparent text-[#89a] hover:text-white cursor-pointer uppercase appearance-none pr-3 outline-none"
                       >
-                        <option value="all" className="bg-[#161a20] text-white">DIARY YEAR ▾</option>
+                        <option value="all" className="bg-[#161a20] text-white">
+                          DIARY YEAR ▾
+                        </option>
                         {availableYears.map((yr) => (
                           <option key={yr} value={yr} className="bg-[#161a20] text-white">
                             {yr}
@@ -1333,17 +1359,28 @@ export function ProfilePage({ username }: { username: string }) {
                   <div className="relative">
                     <select
                       value={reviewsSortBy}
-                      onChange={(e) => setReviewsSortBy(e.target.value as "recent" | "rating" | "popular")}
+                      onChange={(e) =>
+                        setReviewsSortBy(e.target.value as "recent" | "rating" | "popular")
+                      }
                       className="bg-transparent text-[#89a] hover:text-white cursor-pointer uppercase appearance-none pr-3 outline-none"
                     >
-                      <option value="recent" className="bg-[#161a20] text-white">Sort by WHEN REVIEWED ▾</option>
-                      <option value="rating" className="bg-[#161a20] text-white">Sort by HIGHEST RATING ▾</option>
-                      <option value="popular" className="bg-[#161a20] text-white">Sort by POPULAR ▾</option>
+                      <option value="recent" className="bg-[#161a20] text-white">
+                        Sort by WHEN REVIEWED ▾
+                      </option>
+                      <option value="rating" className="bg-[#161a20] text-white">
+                        Sort by HIGHEST RATING ▾
+                      </option>
+                      <option value="popular" className="bg-[#161a20] text-white">
+                        Sort by POPULAR ▾
+                      </option>
                     </select>
                   </div>
 
                   {/* Eye toggle icon */}
-                  <span className="text-[#89a] hover:text-white transition cursor-pointer select-none" title="Filter visibility">
+                  <span
+                    className="text-[#89a] hover:text-white transition cursor-pointer select-none"
+                    title="Filter visibility"
+                  >
                     👁 ▾
                   </span>
                 </div>
@@ -1352,7 +1389,10 @@ export function ProfilePage({ username }: { username: string }) {
               {userReviewsQuery.isLoading ? (
                 <div className="space-y-6 py-4">
                   {[...Array(3)].map((_, i) => (
-                    <div key={i} className="flex gap-4 sm:gap-5 pb-6 border-b border-[#242c34] animate-pulse">
+                    <div
+                      key={i}
+                      className="flex gap-4 sm:gap-5 pb-6 border-b border-[#242c34] animate-pulse"
+                    >
                       <div className="h-[106px] w-[70px] sm:h-[120px] sm:w-[80px] rounded-[3px] bg-white/5 shrink-0" />
                       <div className="flex-1 space-y-2.5 py-1">
                         <div className="h-6 w-1/3 bg-white/5 rounded" />
@@ -1409,19 +1449,21 @@ export function ProfilePage({ username }: { username: string }) {
                                   {starsText}
                                 </span>
                               )}
-                              <span className="text-[#89a]">
-                                Read {readDateText}
-                              </span>
+                              <span className="text-[#89a]">Read {readDateText}</span>
                             </div>
 
                             {/* Review Body */}
                             <div className="mt-2.5">
                               {rev.contains_spoilers && !revealedSpoilers[rev.id] ? (
                                 <div className="rounded border border-amber-500/20 bg-amber-500/10 px-3 py-2 text-xs flex items-center justify-between">
-                                  <span className="text-amber-300 font-sans">⚠️ This review contains spoilers.</span>
+                                  <span className="text-amber-300 font-sans">
+                                    ⚠️ This review contains spoilers.
+                                  </span>
                                   <button
                                     type="button"
-                                    onClick={() => setRevealedSpoilers((prev) => ({ ...prev, [rev.id]: true }))}
+                                    onClick={() =>
+                                      setRevealedSpoilers((prev) => ({ ...prev, [rev.id]: true }))
+                                    }
                                     className="text-amber-400 hover:text-amber-200 font-bold underline cursor-pointer ml-3 font-sans"
                                   >
                                     Reveal
@@ -1469,7 +1511,9 @@ export function ProfilePage({ username }: { username: string }) {
                     ✎
                   </div>
                   <h3 className="mt-4 text-base font-bold text-white">
-                    {isOwner ? "You haven’t published any reviews yet." : `${profile?.display_name || username} hasn’t written any reviews yet.`}
+                    {isOwner
+                      ? "You haven’t published any reviews yet."
+                      : `${profile?.display_name || username} hasn’t written any reviews yet.`}
                   </h3>
                   <p className="mt-1 text-xs text-[#89a]">
                     {isOwner

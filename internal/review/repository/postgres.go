@@ -108,25 +108,25 @@ func (p *Postgres) Delete(ctx context.Context, userID, id string) error {
 	return nil
 }
 
-func (p *Postgres) ListByBook(ctx context.Context, bookID string, opts review.ListOptions) ([]review.Review, error) {
+func (p *Postgres) queryReviews(ctx context.Context, whereClause string, args []any, opts review.ListOptions, errOp string) ([]review.Review, error) {
 	limit := opts.Limit
 	if limit <= 0 || limit > 50 {
 		limit = 20
 	}
 
 	query := `SELECT ` + reviewSelectFields + reviewJoinTables + `
-		WHERE r.book_id = $1`
-	args := []any{bookID}
+		WHERE ` + whereClause
 
 	if opts.CursorCreatedAt != nil && opts.CursorID != "" {
-		query += ` AND (r.created_at, r.id) < ($2, $3)`
+		nextIdx := len(args) + 1
+		query += fmt.Sprintf(` AND (r.created_at, r.id) < ($%d, $%d)`, nextIdx, nextIdx+1)
 		args = append(args, *opts.CursorCreatedAt, opts.CursorID)
 	}
 	query += fmt.Sprintf(` ORDER BY r.created_at DESC, r.id DESC LIMIT %d`, limit)
 
 	rows, err := p.pool.Query(ctx, query, args...)
 	if err != nil {
-		return nil, fmt.Errorf("list reviews by book: %w", err)
+		return nil, fmt.Errorf("%s: %w", errOp, err)
 	}
 	defer rows.Close()
 
@@ -144,39 +144,11 @@ func (p *Postgres) ListByBook(ctx context.Context, bookID string, opts review.Li
 	return reviews, nil
 }
 
+func (p *Postgres) ListByBook(ctx context.Context, bookID string, opts review.ListOptions) ([]review.Review, error) {
+	return p.queryReviews(ctx, "r.book_id = $1", []any{bookID}, opts, "list reviews by book")
+}
+
 func (p *Postgres) ListByUser(ctx context.Context, usernameOrID string, opts review.ListOptions) ([]review.Review, error) {
-	limit := opts.Limit
-	if limit <= 0 || limit > 50 {
-		limit = 20
-	}
-
-	query := `SELECT ` + reviewSelectFields + reviewJoinTables + `
-		WHERE (LOWER(u.username) = LOWER($1) OR r.user_id::text = $1)`
-	args := []any{usernameOrID}
-
-	if opts.CursorCreatedAt != nil && opts.CursorID != "" {
-		query += ` AND (r.created_at, r.id) < ($2, $3)`
-		args = append(args, *opts.CursorCreatedAt, opts.CursorID)
-	}
-	query += fmt.Sprintf(` ORDER BY r.created_at DESC, r.id DESC LIMIT %d`, limit)
-
-	rows, err := p.pool.Query(ctx, query, args...)
-	if err != nil {
-		return nil, fmt.Errorf("list reviews by user: %w", err)
-	}
-	defer rows.Close()
-
-	var reviews []review.Review
-	for rows.Next() {
-		rev, err := scanReview(rows)
-		if err != nil {
-			return nil, fmt.Errorf("scan review: %w", err)
-		}
-		reviews = append(reviews, rev)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("reviews rows: %w", err)
-	}
-	return reviews, nil
+	return p.queryReviews(ctx, "(LOWER(u.username) = LOWER($1) OR r.user_id::text = $1)", []any{usernameOrID}, opts, "list reviews by user")
 }
 

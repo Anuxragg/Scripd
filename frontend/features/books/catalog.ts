@@ -131,7 +131,10 @@ export const KNOWN_BOOKS: Record<string, CatalogBook> = {
 
 export function findKnownBook(idOrTitle?: string): CatalogBook | null {
   if (!idOrTitle) return null;
-  const key = idOrTitle.toLowerCase().replace(/^(works\/|books\/)/i, "").trim();
+  const key = idOrTitle
+    .toLowerCase()
+    .replace(/^(works\/|books\/)/i, "")
+    .trim();
   if (KNOWN_BOOKS[key]) return KNOWN_BOOKS[key];
 
   const normalizedSlug = key.replace(/[\s_]+/g, "-");

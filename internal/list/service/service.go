@@ -23,7 +23,7 @@ type repository interface {
 	ListUserLists(ctx context.Context, targetUserID string, viewerID string) ([]list.List, error)
 	UpdateList(ctx context.Context, listID string, userID string, input list.UpdateListInput) (list.List, error)
 	DeleteList(ctx context.Context, listID string, userID string) error
-	AddBookToList(ctx context.Context, listID string, userID string, input list.AddBookInput) (list.ListItem, error)
+	AddBookToList(ctx context.Context, listID string, userID string, input list.AddBookInput) (list.Item, error)
 	RemoveBookFromList(ctx context.Context, listID string, userID string, bookID string) error
 	UpdateListItem(ctx context.Context, listID string, userID string, bookID string, input list.UpdateItemInput) error
 	GetBookListsForUser(ctx context.Context, userID string, bookID string) ([]string, error)
@@ -119,15 +119,15 @@ func (s *Service) DeleteList(ctx context.Context, listID, userID string) error {
 	return s.repo.DeleteList(ctx, listID, userID)
 }
 
-func (s *Service) AddBookToList(ctx context.Context, listID, userID string, input list.AddBookInput) (list.ListItem, error) {
+func (s *Service) AddBookToList(ctx context.Context, listID, userID string, input list.AddBookInput) (list.Item, error) {
 	if !isValidUUID(listID) || !isValidUUID(userID) || strings.TrimSpace(input.BookID) == "" {
-		return list.ListItem{}, list.ErrInvalidInput
+		return list.Item{}, list.ErrInvalidInput
 	}
 
 	if input.Notes != nil {
 		notes := strings.TrimSpace(*input.Notes)
 		if utf8.RuneCountInString(notes) > 1000 {
-			return list.ListItem{}, fmt.Errorf("%w: notes must not exceed 1000 characters", list.ErrInvalidInput)
+			return list.Item{}, fmt.Errorf("%w: notes must not exceed 1000 characters", list.ErrInvalidInput)
 		}
 		if notes == "" {
 			input.Notes = nil

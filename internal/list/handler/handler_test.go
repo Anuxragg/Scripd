@@ -86,15 +86,15 @@ func (s *stubService) DeleteList(_ context.Context, listID, userID string) error
 	return nil
 }
 
-func (s *stubService) AddBookToList(_ context.Context, listID, userID string, input list.AddBookInput) (list.ListItem, error) {
+func (s *stubService) AddBookToList(_ context.Context, listID, userID string, input list.AddBookInput) (list.Item, error) {
 	l, ok := s.lists[listID]
 	if !ok {
-		return list.ListItem{}, list.ErrNotFound
+		return list.Item{}, list.ErrNotFound
 	}
 	if l.UserID != userID {
-		return list.ListItem{}, list.ErrForbidden
+		return list.Item{}, list.ErrForbidden
 	}
-	return list.ListItem{
+	return list.Item{
 		ListID:    listID,
 		BookID:    input.BookID,
 		CreatedAt: time.Now(),

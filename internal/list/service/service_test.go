@@ -12,7 +12,7 @@ import (
 
 type mockRepo struct {
 	lists       map[string]list.List
-	items       map[string][]list.ListItem
+	items       map[string][]list.Item
 	users       map[string]string // username -> userID
 	failWithErr error
 }
@@ -20,7 +20,7 @@ type mockRepo struct {
 func newMockRepo() *mockRepo {
 	return &mockRepo{
 		lists: make(map[string]list.List),
-		items: make(map[string][]list.ListItem),
+		items: make(map[string][]list.Item),
 		users: make(map[string]string),
 	}
 }
@@ -49,7 +49,7 @@ func (m *mockRepo) CreateList(_ context.Context, userID string, input list.Creat
 		IsPrivate:    input.IsPrivate,
 		ItemCount:    0,
 		SampleCovers: []string{},
-		Items:        []list.ListItem{},
+		Items:        []list.Item{},
 		CreatedAt:    time.Now(),
 		UpdatedAt:    time.Now(),
 	}
@@ -129,23 +129,23 @@ func (m *mockRepo) DeleteList(_ context.Context, listID string, userID string) e
 	return nil
 }
 
-func (m *mockRepo) AddBookToList(_ context.Context, listID string, userID string, input list.AddBookInput) (list.ListItem, error) {
+func (m *mockRepo) AddBookToList(_ context.Context, listID string, userID string, input list.AddBookInput) (list.Item, error) {
 	if m.failWithErr != nil {
-		return list.ListItem{}, m.failWithErr
+		return list.Item{}, m.failWithErr
 	}
 	l, ok := m.lists[listID]
 	if !ok {
-		return list.ListItem{}, list.ErrNotFound
+		return list.Item{}, list.ErrNotFound
 	}
 	if l.UserID != userID {
-		return list.ListItem{}, list.ErrForbidden
+		return list.Item{}, list.ErrForbidden
 	}
 	for _, it := range m.items[listID] {
 		if it.BookID == input.BookID {
-			return list.ListItem{}, list.ErrConflict
+			return list.Item{}, list.ErrConflict
 		}
 	}
-	item := list.ListItem{
+	item := list.Item{
 		ListID:    listID,
 		BookID:    input.BookID,
 		Notes:     input.Notes,
@@ -169,7 +169,7 @@ func (m *mockRepo) RemoveBookFromList(_ context.Context, listID string, userID s
 	}
 	items := m.items[listID]
 	found := false
-	var updated []list.ListItem
+	var updated []list.Item
 	for _, it := range items {
 		if it.BookID == bookID {
 			found = true

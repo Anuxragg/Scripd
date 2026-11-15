@@ -13,6 +13,7 @@ frontend/.env.local
 /coverage.out
 /coverage.html
 /vendor/
+.cache/
 
 # Node / Next.js
 frontend/node_modules/

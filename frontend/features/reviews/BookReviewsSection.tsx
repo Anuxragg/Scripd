@@ -27,6 +27,7 @@ import {
   useDeleteReview,
   useUpdateReview,
 } from "@/features/reviews/hooks";
+import { likeReview, unlikeReview } from "@/features/reviews/api";
 import { useCreateRead, useReadEntries } from "@/features/reads/hooks";
 import { ReviewCommentsThread } from "@/features/reviews/ReviewCommentsThread";
 import { useClientStorage, subscribeStorage, notifyStorageChange } from "@/lib/useClientStorage";
@@ -125,47 +126,40 @@ function ratingToCategory(rating?: number | null): ReviewRatingCategory {
   return "Skip";
 }
 
-function ReviewFollowButton({
-  username,
-  initialFollowing = false,
-  onFollowChange,
-}: {
-  username: string;
-  initialFollowing?: boolean;
-  onFollowChange?: (following: boolean) => void;
-}) {
+function ReviewFollowButton({ username }: { username: string }) {
+  const userQuery = useCurrentUser();
+  const currentUser = userQuery.data;
+  const viewer = currentUser?.username?.toLowerCase() ?? "guest";
+  const targetUsername = username.toLowerCase();
+  const isSelf = Boolean(
+    currentUser?.username && currentUser.username.toLowerCase() === targetUsername,
+  );
+
   const followStatusQuery = useFollowStatus(username);
   const followMutation = useFollowUser(username);
   const unfollowMutation = useUnfollowUser(username);
 
-  const [localFollowed, setLocalFollowed] = useClientStorage<boolean | null>(
-    `scripd_following_${username.toLowerCase()}`,
-    null,
-  );
+  const followingListKey = `scripd_user_${viewer}_following`;
+  const [followingList, setFollowingList] = useClientStorage<string[]>(followingListKey, []);
 
-  const isFollowing =
-    localFollowed !== null
-      ? localFollowed
-      : (followStatusQuery.data?.is_following ?? initialFollowing);
+  const isLocallyFollowed = followingList.includes(targetUsername);
+  const isFollowing = isSelf ? false : (followStatusQuery.data?.is_following ?? isLocallyFollowed);
 
   const isPending = followMutation.isPending || unfollowMutation.isPending;
+
+  if (isSelf) return null;
 
   async function handleToggleFollow(e: React.MouseEvent) {
     e.stopPropagation();
     const nextState = !isFollowing;
-    setLocalFollowed(nextState);
-    onFollowChange?.(nextState);
 
-    try {
-      if (nextState) {
-        localStorage.setItem(`scripd_has_follower_${username.toLowerCase()}`, "true");
-      } else {
-        localStorage.removeItem(`scripd_has_follower_${username.toLowerCase()}`);
-      }
-      notifyStorageChange();
-    } catch {
-      // Safe ignore
-    }
+    setFollowingList((prev) =>
+      nextState
+        ? prev.includes(targetUsername)
+          ? prev
+          : [...prev, targetUsername]
+        : prev.filter((u) => u !== targetUsername),
+    );
 
     try {
       if (isFollowing) {
@@ -332,6 +326,34 @@ export function BookReviewsSection({
   // Real local user reviews storage for persistence across reloads / non-UUID books
   const storageKey = `scripd_production_reviews_${bookID}`;
   const [localReviews, setLocalReviews] = useClientStorage<DisplayReview[]>(storageKey, []);
+
+  // Viewer-scoped likes and following
+  const viewer = user?.username?.toLowerCase() ?? "guest";
+  const viewerLikesKey = `scripd_user_likes_${viewer}`;
+  const [viewerLikedIds, setViewerLikedIds] = useClientStorage<string[]>(viewerLikesKey, []);
+
+  const followingListKey = `scripd_user_${viewer}_following`;
+  const [viewerFollowingList] = useClientStorage<string[]>(followingListKey, []);
+
+  // Clean up legacy unscoped keys on mount
+  useEffect(() => {
+    try {
+      const keysToRemove: string[] = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        if (k && (k.startsWith("scripd_following_") || k.startsWith("scripd_has_follower_"))) {
+          keysToRemove.push(k);
+        }
+      }
+      keysToRemove.forEach((k) => localStorage.removeItem(k));
+      if (keysToRemove.length > 0) {
+        notifyStorageChange();
+      }
+    } catch {
+      // Safe ignore
+    }
+  }, []);
+
   const isHydrated = useSyncExternalStore(
     () => () => {},
     () => true,
@@ -353,7 +375,7 @@ export function BookReviewsSection({
       body: r.body,
       createdAt: formatTimeAgo(r.created_at),
       likes: 0,
-      isLiked: false,
+      isLiked: viewerLikedIds.includes(r.id),
       containsSpoilers: r.contains_spoilers,
       isFollowing: false,
       reactions: [],
@@ -363,6 +385,8 @@ export function BookReviewsSection({
     // Also strip any legacy "like" inside reactions so it stays strictly on the dedicated thumbs-up button
     const sanitizedLocal: DisplayReview[] = localReviews.map((r) => ({
       ...r,
+      isLiked: viewerLikedIds.includes(r.id),
+      isFollowing: false,
       reactions: r.reactions?.filter((rx) => rx.id !== "like"),
     }));
     const combined: DisplayReview[] = [...sanitizedLocal];
@@ -373,7 +397,7 @@ export function BookReviewsSection({
     }
 
     return combined;
-  }, [apiReviewsQuery.data, localReviews]);
+  }, [apiReviewsQuery.data, localReviews, viewerLikedIds]);
 
   // Filters State
   const [sortBy, setSortBy] = useState<"liked" | "recent">("liked");
@@ -435,17 +459,23 @@ export function BookReviewsSection({
   }
 
   function handleToggleLike(id: string) {
+    const currentlyLiked = viewerLikedIds.includes(id);
+    const nextLiked = !currentlyLiked;
+
+    setViewerLikedIds((prev) =>
+      nextLiked ? (prev.includes(id) ? prev : [...prev, id]) : prev.filter((item) => item !== id),
+    );
+
     setLocalReviews((prev) => {
       const exists = prev.some((r) => r.id === id);
       if (exists) {
         return prev.map((r) => {
           if (r.id === id) {
-            const nextLiked = !r.isLiked;
             const nextCount = nextLiked ? r.likes + 1 : Math.max(0, r.likes - 1);
             return {
               ...r,
-              isLiked: nextLiked,
               likes: nextCount,
+              isLiked: false,
             };
           }
           return r;
@@ -453,7 +483,6 @@ export function BookReviewsSection({
       }
       const backendTarget = allReviews.find((r) => r.id === id);
       if (backendTarget) {
-        const nextLiked = !backendTarget.isLiked;
         const nextCount = nextLiked
           ? backendTarget.likes + 1
           : Math.max(0, backendTarget.likes - 1);
@@ -461,13 +490,21 @@ export function BookReviewsSection({
           ...prev,
           {
             ...backendTarget,
-            isLiked: nextLiked,
             likes: nextCount,
+            isLiked: false,
           },
         ];
       }
       return prev;
     });
+
+    if (user && isUUID && !id.startsWith("review-")) {
+      if (nextLiked) {
+        likeReview(id).catch(() => {});
+      } else {
+        unlikeReview(id).catch(() => {});
+      }
+    }
   }
 
   async function handlePostReview(e: React.FormEvent) {
@@ -520,7 +557,7 @@ export function BookReviewsSection({
         likes: 0,
         isLiked: false,
         containsSpoilers: containsSpoilers,
-        isFollowing: true,
+        isFollowing: false,
         bookTitle: resolvedTitle,
         bookCover: resolvedCover,
         bookAuthors: resolvedAuthors,
@@ -630,13 +667,7 @@ export function BookReviewsSection({
 
     if (followingOnly) {
       list = list.filter((r) => {
-        if (typeof window !== "undefined") {
-          const stored = localStorage.getItem(
-            `scripd_following_${r.author.username.toLowerCase()}`,
-          );
-          if (stored !== null) return stored === "true";
-        }
-        return r.isFollowing;
+        return viewerFollowingList.includes(r.author.username.toLowerCase());
       });
     }
 
@@ -645,7 +676,7 @@ export function BookReviewsSection({
     }
 
     return list;
-  }, [allReviews, followingOnly, sortBy]);
+  }, [allReviews, followingOnly, sortBy, viewerFollowingList]);
 
   return (
     <div className="space-y-12 relative" ref={menuContainerRef}>
@@ -871,9 +902,9 @@ export function BookReviewsSection({
 
                 const isAuthor = Boolean(
                   (user && review.author.username.toLowerCase() === user.username.toLowerCase()) ||
-                    review.author.username === "You" ||
-                    review.author.username.toLowerCase() ===
-                      currentUsername.replace("@", "").toLowerCase(),
+                  review.author.username === "You" ||
+                  review.author.username.toLowerCase() ===
+                    currentUsername.replace("@", "").toLowerCase(),
                 );
 
                 const isEditingThis = editingReviewId === review.id;
@@ -914,22 +945,7 @@ export function BookReviewsSection({
                       </div>
 
                       {/* Follow Button for other viewers */}
-                      {!isAuthor && (
-                        <ReviewFollowButton
-                          username={review.author.username}
-                          initialFollowing={review.isFollowing}
-                          onFollowChange={(following) => {
-                            setLocalReviews((prev) =>
-                              prev.map((r) =>
-                                r.author.username.toLowerCase() ===
-                                review.author.username.toLowerCase()
-                                  ? { ...r, isFollowing: following }
-                                  : r,
-                              ),
-                            );
-                          }}
-                        />
-                      )}
+                      {!isAuthor && <ReviewFollowButton username={review.author.username} />}
                     </div>
 
                     {/* Edit Mode Form vs Normal Display */}

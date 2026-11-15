@@ -37,7 +37,10 @@ export function useLogin() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (input: LoginInput) => login(input),
-    onSuccess: (profile: Profile) => queryClient.setQueryData(currentUserKey, profile),
+    onSuccess: (profile: Profile) => {
+      queryClient.clear();
+      queryClient.setQueryData(currentUserKey, profile);
+    },
   });
 }
 
@@ -46,6 +49,7 @@ export function useGoogleLogin() {
   return useMutation({
     mutationFn: (credential: string) => loginWithGoogle(credential),
     onSuccess: (profile: Profile) => {
+      queryClient.clear();
       queryClient.setQueryData(currentUserKey, profile);
       queryClient.invalidateQueries({ queryKey: currentUserKey });
     },
@@ -56,7 +60,10 @@ export function useRegister() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (input: RegisterInput) => register(input),
-    onSuccess: (profile: Profile) => queryClient.setQueryData(currentUserKey, profile),
+    onSuccess: (profile: Profile) => {
+      queryClient.clear();
+      queryClient.setQueryData(currentUserKey, profile);
+    },
   });
 }
 
@@ -64,7 +71,10 @@ export function useLogout() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: logout,
-    onSuccess: () => queryClient.setQueryData(currentUserKey, null),
+    onSuccess: () => {
+      queryClient.clear();
+      queryClient.setQueryData(currentUserKey, null);
+    },
   });
 }
 

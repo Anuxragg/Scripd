@@ -1,6 +1,7 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useCurrentUser } from "@/features/auth/hooks";
 import {
   getProfile,
   getProfileStats,
@@ -34,8 +35,10 @@ export function useProfileStats(username: string) {
 }
 
 export function useFollowStatus(username: string) {
+  const userQuery = useCurrentUser();
+  const viewer = userQuery.data?.username?.toLowerCase() ?? "anonymous";
   return useQuery({
-    queryKey: ["users", "follow-status", username.toLowerCase()],
+    queryKey: ["users", "follow-status", viewer, username.toLowerCase()],
     queryFn: () => getFollowStatus(username),
     enabled: Boolean(username.trim()),
     staleTime: 5_000,
@@ -48,7 +51,7 @@ export function useFollowUser(username: string) {
     mutationFn: () => followUser(username),
     onSuccess: () => {
       queryClient.invalidateQueries({
-        queryKey: ["users", "follow-status", username.toLowerCase()],
+        queryKey: ["users", "follow-status"],
       });
       queryClient.invalidateQueries({
         queryKey: ["users", "stats", username.toLowerCase()],
@@ -63,7 +66,7 @@ export function useUnfollowUser(username: string) {
     mutationFn: () => unfollowUser(username),
     onSuccess: () => {
       queryClient.invalidateQueries({
-        queryKey: ["users", "follow-status", username.toLowerCase()],
+        queryKey: ["users", "follow-status"],
       });
       queryClient.invalidateQueries({
         queryKey: ["users", "stats", username.toLowerCase()],

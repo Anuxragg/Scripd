@@ -140,6 +140,11 @@ export function ReviewCommentsThread({
   }
 
   // Local like & reactions state per comment
+  const viewerKey = currentUser?.username?.toLowerCase() || "guest";
+  const [viewerCommentLikes, setViewerCommentLikes] = useClientStorage<Record<string, boolean>>(
+    `scripd_user_comment_likes_${viewerKey}`,
+    {},
+  );
   const [likesData, setLikesData] = useClientStorage<CommentLikesData>(
     `scripd_replies_likes_${reviewID}`,
     DEFAULT_LIKES_DATA,
@@ -148,20 +153,25 @@ export function ReviewCommentsThread({
     `scripd_replies_reactions_${reviewID}`,
     DEFAULT_REACTIONS_DATA,
   );
-  const likedCommentIds = likesData.likedIds || {};
+  const likedCommentIds = viewerCommentLikes;
   const commentLikes = likesData.counts || {};
   const replyInputRef = useRef<HTMLInputElement>(null);
 
   function handleToggleCommentLike(commentId: string) {
+    const currentlyLiked = Boolean(viewerCommentLikes[commentId]);
+    const nextLiked = !currentlyLiked;
+
+    setViewerCommentLikes((prev) => ({
+      ...prev,
+      [commentId]: nextLiked,
+    }));
+
     setLikesData((prev) => {
-      const prevLikedIds = prev.likedIds || {};
       const prevCounts = prev.counts || {};
-      const currentlyLiked = Boolean(prevLikedIds[commentId]);
-      const nextLiked = !currentlyLiked;
       const currentCount = prevCounts[commentId] ?? 0;
       const nextCount = Math.max(0, currentCount + (nextLiked ? 1 : -1));
       return {
-        likedIds: { ...prevLikedIds, [commentId]: nextLiked },
+        likedIds: {},
         counts: { ...prevCounts, [commentId]: nextCount },
       };
     });

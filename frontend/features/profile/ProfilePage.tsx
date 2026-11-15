@@ -403,36 +403,45 @@ export function ProfilePage({ username }: { username: string }) {
     return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
   });
 
-  const localFollowed = useSyncExternalStore(
-    subscribeStorage,
-    () => {
-      try {
-        const stored = localStorage.getItem(`scripd_following_${normalizedUsername}`);
-        return stored !== null ? stored === "true" : null;
-      } catch {
-        return null;
+  // Clean up legacy unscoped keys on mount
+  useEffect(() => {
+    try {
+      const keysToRemove: string[] = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        if (k && (k.startsWith("scripd_following_") || k.startsWith("scripd_has_follower_"))) {
+          keysToRemove.push(k);
+        }
       }
-    },
-    () => null,
-  );
+      keysToRemove.forEach((k) => localStorage.removeItem(k));
+      if (keysToRemove.length > 0) {
+        notifyStorageChange();
+      }
+    } catch {
+      // Safe ignore
+    }
+  }, []);
 
-  const isFollowing =
-    localFollowed !== null ? localFollowed : (followStatusQuery.data?.is_following ?? false);
+  const viewer = userQuery.data?.username?.toLowerCase();
+  const isSelf = Boolean(viewer && viewer === normalizedUsername);
 
-  const hasLocalFollower = useSyncExternalStore(
+  const isLocallyFollowed = useSyncExternalStore(
     subscribeStorage,
     () => {
+      if (!viewer || typeof window === "undefined") return false;
       try {
-        return (
-          localStorage.getItem(`scripd_following_${normalizedUsername}`) === "true" ||
-          localStorage.getItem(`scripd_has_follower_${normalizedUsername}`) === "true"
-        );
+        const raw = localStorage.getItem(`scripd_user_${viewer}_following`);
+        if (!raw) return false;
+        const list: string[] = JSON.parse(raw);
+        return Array.isArray(list) && list.includes(normalizedUsername);
       } catch {
         return false;
       }
     },
     () => false,
   );
+
+  const isFollowing = isSelf ? false : (followStatusQuery.data?.is_following ?? isLocallyFollowed);
 
   const localFollowingCount = useSyncExternalStore(
     subscribeStorage,
@@ -450,9 +459,9 @@ export function ProfilePage({ username }: { username: string }) {
   const baseFollowers = followStatusQuery.data?.followers_count ?? 0;
   const followersCount = useMemo(() => {
     if (baseFollowers > 0) return baseFollowers;
-    if (isFollowing || hasLocalFollower) return 1;
+    if (isFollowing) return 1;
     return 0;
-  }, [baseFollowers, isFollowing, hasLocalFollower]);
+  }, [baseFollowers, isFollowing]);
 
   const baseFollowing = followStatusQuery.data?.following_count ?? 0;
   const followingCount = Math.max(baseFollowing, localFollowingCount);
@@ -479,32 +488,22 @@ export function ProfilePage({ username }: { username: string }) {
   const isFollowPending = followMutation.isPending || unfollowMutation.isPending;
 
   async function handleToggleFollow() {
+    if (isSelf) return;
     const nextState = !isFollowing;
-    const viewer = userQuery.data?.username;
 
     try {
-      localStorage.setItem(`scripd_following_${normalizedUsername}`, String(nextState));
-      if (nextState) {
-        localStorage.setItem(`scripd_has_follower_${normalizedUsername}`, "true");
-        if (viewer) {
-          const listKey = `scripd_user_${viewer.toLowerCase()}_following`;
-          const existing: string[] = JSON.parse(localStorage.getItem(listKey) || "[]");
-          if (!existing.includes(normalizedUsername)) {
-            localStorage.setItem(listKey, JSON.stringify([...existing, normalizedUsername]));
-          }
-        }
-      } else {
-        localStorage.removeItem(`scripd_has_follower_${normalizedUsername}`);
-        if (viewer) {
-          const listKey = `scripd_user_${viewer.toLowerCase()}_following`;
-          const existing: string[] = JSON.parse(localStorage.getItem(listKey) || "[]");
-          localStorage.setItem(
-            listKey,
-            JSON.stringify(existing.filter((u) => u !== normalizedUsername)),
-          );
-        }
+      if (viewer) {
+        const listKey = `scripd_user_${viewer}_following`;
+        const raw = localStorage.getItem(listKey);
+        const existing: string[] = raw ? JSON.parse(raw) : [];
+        const nextList = nextState
+          ? existing.includes(normalizedUsername)
+            ? existing
+            : [...existing, normalizedUsername]
+          : existing.filter((u) => u !== normalizedUsername);
+        localStorage.setItem(listKey, JSON.stringify(nextList));
+        notifyStorageChange();
       }
-      notifyStorageChange();
     } catch {
       // Safe ignore
     }
